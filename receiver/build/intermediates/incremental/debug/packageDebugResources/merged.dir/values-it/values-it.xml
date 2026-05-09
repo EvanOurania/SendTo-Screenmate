@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Receiver</string>
+    <string name="btn_cancel">Annulla</string>
+    <string name="btn_confirm">Genera</string>
+    <string name="btn_start">Avvia</string>
+    <string name="btn_stop">Stop</string>
+    <string name="copy_note">Copia automaticamente il testo ricevuto negli appunti</string>
+    <string name="copy_to_clipboard">Copia automatica negli appunti</string>
+    <string name="disable_battery">Disabilita Ottimizzazione Batteria</string>
+    <string name="enable_overlay">Attiva Sovrapposizione</string>
+    <string name="encryption_label">Crittografia End-to-End</string>
+    <string name="encryption_note">Nota: Il mittente decide se criptare i messaggi tramite ntfy.</string>
+    <string name="generate_confirm_msg">Attenzione: questo invaliderà tutte le configurazioni dei tuoi Sender. Dovrai scansionare il nuovo QR code su tutti i dispositivi.</string>
+    <string name="generate_confirm_title">Generare nuovo Topic?</string>
+    <string name="generate_topic">Genera Topic e Chiave</string>
+    <string name="notification_conn_lost">Connessione persa. Riprovo tra 10s…</string>
+    <string name="notification_listening">In ascolto su %1$s tramite %2$s</string>
+    <string name="notification_start">Avvio ascolto…</string>
+    <string name="notification_stopping">Interruzione servizio…</string>
+    <string name="notification_title">Ricevitore Attivo</string>
+    <string name="notification_topic_not_set">Topic non configurato</string>
+    <string name="ntfy_config">Configurazione ntfy.sh</string>
+    <string name="ntfy_instructions"><![CDATA[<b>Passaggi per l\'accoppiamento:</b><br><br>
+1. Clicca su <b>\"Genera Topic e Chiave\"</b> per creare il tuo ID di accoppiamento sicuro.<br><br>
+2. <b>Permessi (Richiesti):</b> Assicurati che i tasti <b>Sovrapposizione</b> e <b>Batteria</b> qui sopra siano spariti.<br><br>
+3. <b>Avvia:</b> Clicca su <b>\"Avvia\"</b>. Lo stato verde confermerà che il sistema è pronto.]]></string>
+    <string name="ntfy_server_label">Server (es. https://ntfy.sh)</string>
+    <string name="ntfy_topic_label">Topic (Argomento)</string>
+    <string name="permissions_required">Permessi Necessari</string>
+    <string name="qr_instructions">Scansiona questo QR code con l\'app di invio per l\'accoppiamento E2E</string>
+    <string name="save_success">Impostazioni salvate e ascolto avviato!</string>
+    <string name="section_configuration">Configurazione ntfy.sh</string>
+    <string name="section_instructions">Istruzioni</string>
+    <string name="section_permissions">Permessi</string>
+    <string name="service_not_running">Il servizio NON è in esecuzione</string>
+    <string name="service_running">Il servizio è in esecuzione</string>
+    <string name="settings_title">Impostazioni Ricevitore</string>
+    <string name="stop_ntfy">Interrompi Ascolto</string>
+    <string name="text_copied_toast">Copiato negli appunti!</string>
+    <string name="topic_copied">Copia topic negli appunti</string>
+</resources>
