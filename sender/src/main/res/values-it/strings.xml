@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SendTo ScreenMate</string>
+    <string name="settings_title">Impostazioni Invio</string>
+    <string name="select_service">Seleziona servizio:</string>
+    <string name="macrodroid_config">Configurazione MacroDroid</string>
+    <string name="webhook_url_label">URL Webhook</string>
+    <string name="save_macrodroid">Salva MacroDroid</string>
+    <string name="macrodroid_instructions"><![CDATA[<b>Istruzioni di Configurazione:</b><br><br>
+1. Sul dispositivo <b>Ricevitore</b>, installa <b>MacroDroid</b> e crea una nuova Macro.<br><br>
+2. Aggiungi un <b>Trigger</b>: \"Connettività\" -> \"Web Hook (HTTP)\". Scegli un ID (es. \"nav\").<br><br>
+3. MacroDroid fornirà un URL. Copialo e incollalo nel campo sottostante.<br><br>
+4. Aggiungi una <b>Variabile</b> alla Macro: chiamala <b>\"value\"</b> (tipo Stringa).<br><br>
+5. Aggiungi un\'<b>Azione</b>: \"Azioni del dispositivo\" -> \"Invia Intent\".<br><br>
+6. Configura Intent: Azione: <b>android.intent.action.VIEW</b>, Dati: <b>{lv=value}</b>, Target: <b>Activity</b>.]]></string>
+
+    <string name="ntfy_config">Configurazione ntfy.sh</string>
+    <string name="ntfy_server_label">Server (es: https://ntfy.sh)</string>
+    <string name="ntfy_topic_label">Topic</string>
+    <string name="save_ntfy">Salva ntfy</string>
+    <string name="ntfy_instructions"><![CDATA[<b>Passaggi per l\'accoppiamento:</b><br><br>
+1. Sul dispositivo <b>Ricevitore</b>, clicca su \"Genera Topic e Chiave\".<br><br>
+2. Su questo dispositivo, clicca su <b>\"Scansiona QR Ricevitore\"</b> e inquadra il codice sul ricevitore.<br><br>
+3. Le app si accoppieranno istantaneamente con supporto alla crittografia E2E.]]></string>
+
+    <string name="sending_progress">Invio…</string>
+    <string name="sent_macrodroid">Inviato a Screenmate!</string>
+    <string name="error_macrodroid">Errore nell\'invio a Screenmate</string>
+    <string name="sent_ntfy">Inviato a Screenmate!</string>
+    <string name="error_ntfy">Errore nell\'invio a Screenmate</string>
+    <string name="no_data_error">Nessun dato trovato da inviare</string>
+    <string name="save_success_macrodroid">URL salvato!</string>
+    <string name="save_success_ntfy">Configurazione ntfy salvata!</string>
+    <string name="encryption_label">Crittografia End-to-End</string>
+    <string name="char_limit_label">%1$d / 3000</string>
+    <string name="manual_send_label">Invio Manuale</string>
+    <string name="manual_send_hint">Incolla link o testo qui</string>
+    <string name="char_limit_exceeded">Testo troppo lungo (max 3000 car.)</string>
+    <string name="btn_send">Invia a ScreenMate</string>
+    <string name="scan_qr">Scansiona QR Ricevitore</string>
+    <string name="section_input">Input</string>
+    <string name="section_service">Servizio</string>
+    <string name="section_configuration">Configurazione</string>
+    <string name="section_instructions">Istruzioni</string>
+</resources>
