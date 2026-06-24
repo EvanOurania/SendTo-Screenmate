@@ -158,7 +158,7 @@ class MainActivity : ComponentActivity() {
         
         var url = extractUrl(fullText)
         
-        // Se non troviamo un URL nel testo, proviamo a vedere se l'intent ha un data geo:
+        // If we don't find a URL in the text, check if the intent has a geo: data scheme
         if (url.isBlank() && dataString.startsWith("geo:")) {
             url = dataString
         }
@@ -166,24 +166,24 @@ class MainActivity : ComponentActivity() {
         var title = ""
         
         if (intent.action == Intent.ACTION_SEND) {
-            // Priorità al Subject
+            // Priority to Subject
             if (subject.isNotBlank()) {
                 title = subject.trim()
             } else if (url.isNotBlank()) {
-                // Estraiamo quello che precede l'URL
+                // Extract what precedes the URL
                 val textBeforeUrl = fullText.substringBefore(url).trim()
                 if (textBeforeUrl.isNotBlank()) {
-                    // Aggiungiamo " - " ai separatori per app come Electra
+                    // Add " - " to delimiters for apps like Electra
                     title = textBeforeUrl.split("\n", "·", " - ").first().trim()
                 }
             }
             
-            // Se ancora non c'è titolo ed è un link geo, cerchiamo l'etichetta (Label)
+            // If title is still blank and it's a geo link, look for the label
             if (title.isBlank() && url.startsWith("geo:")) {
                 title = extractGeoLabel(url)
             }
         } else if (intent.action == Intent.ACTION_VIEW || intent.action == "android.intent.action.NAVIGATE") {
-            // Per i geo: link diretti
+            // For direct geo: links
             title = extractGeoLabel(dataString).ifBlank { "Position" }
             if (url.isBlank()) url = dataString
         }
@@ -228,11 +228,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun extractUrl(text: String): String {
-        // Se il testo è già solo un URI geo:, lo prendiamo tutto
+        // If the text is already just a geo: URI, take it all
         if (text.trim().startsWith("geo:", ignoreCase = true)) return text.trim()
         
-        // Regex più permissiva per catturare l'intero link anche con caratteri speciali
-        // Includiamo [^\\s] per prendere tutto fino al primo spazio bianco
+        // Permissive regex to capture the entire link even with special characters
+        // We include [^\\s] to grab everything until the first whitespace
         val urlRegex = Regex("((https?://|geo:)[^\\s\\n\\r]+)")
         val match = urlRegex.find(text)
         return match?.value ?: ""
@@ -240,12 +240,12 @@ class MainActivity : ComponentActivity() {
 
     private fun extractGeoLabel(geoUri: String): String {
         try {
-            // 1. Cerchiamo il parametro q= (molto comune per indirizzi testuali)
+            // 1. Search for q= parameter (common for text addresses)
             val qIndex = geoUri.indexOf("q=")
             if (qIndex != -1) {
                 var value = geoUri.substring(qIndex + 2)
                 
-                // Ci fermiamo ai delimitatori comuni
+                // Stop at common delimiters
                 val endDelimiters = charArrayOf('&', '@', '#')
                 var firstDelimiter = -1
                 for (d in endDelimiters) {
@@ -259,15 +259,15 @@ class MainActivity : ComponentActivity() {
                     value = value.substring(0, firstDelimiter)
                 }
                 
-                // Decodifichiamo (gestisce %20, +, ecc)
+                // Decode (handles %20, +, etc)
                 val decoded = try {
                     URLDecoder.decode(value, StandardCharsets.UTF_8.name()).trim()
                 } catch (_: Exception) {
                     value.replace("%20", " ").replace("+", " ").trim()
                 }
 
-                // Se il risultato contiene delle parentesi, estraiamo solo il contenuto (l'etichetta)
-                // Questo pulisce casi come "45.123,9.123(Nome Posto)"
+                // If result contains parentheses, extract only the content (the label)
+                // This cleans cases like "45.123,9.123(Place Name)"
                 val labelMatch = Regex("\\((.+)\\)").find(decoded)
                 if (labelMatch != null) {
                     return labelMatch.groupValues[1].trim()
@@ -276,7 +276,7 @@ class MainActivity : ComponentActivity() {
                 return decoded
             }
 
-            // 2. Fallback: cerchiamo l'etichetta tra parentesi (standard geo:)
+            // 2. Fallback: search for label in parentheses (standard geo: format)
             val labelRegex = Regex("\\(([^)]+)\\)")
             val labelMatch = labelRegex.find(geoUri)
             if (labelMatch != null) {

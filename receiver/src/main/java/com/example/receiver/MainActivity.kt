@@ -100,7 +100,7 @@ fun MainScreen() {
             }
         }
     ) { padding ->
-        // Non applichiamo il padding qui per permettere alla lista di scorrere "sotto" la barra
+        // We don't apply padding here to allow the list to scroll "under" the bar
         if (currentTab == 0) {
             HistoryScreen(padding)
         } else {
@@ -147,7 +147,7 @@ fun HistoryScreen(navigationPadding: PaddingValues) {
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                // Sommiamo il padding della Top Bar (scaffoldPadding) e della Nav Bar (navigationPadding)
+                // Add top bar padding (scaffoldPadding) and nav bar padding (navigationPadding)
                 contentPadding = PaddingValues(
                     top = scaffoldPadding.calculateTopPadding() + 16.dp,
                     bottom = navigationPadding.calculateBottomPadding() + 32.dp,

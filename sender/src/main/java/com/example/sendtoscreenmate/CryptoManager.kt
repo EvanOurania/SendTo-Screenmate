@@ -29,7 +29,7 @@ object CryptoManager {
         
         val encryptedData = cipher.doFinal(data.toByteArray())
         
-        // Risultato: IV + Dati Criptati (Base64)
+        // Result: IV + Encrypted Data (Base64)
         return Base64.encodeToString(iv + encryptedData, Base64.NO_WRAP)
     }
 
