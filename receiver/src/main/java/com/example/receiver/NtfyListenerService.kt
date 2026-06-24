@@ -36,6 +36,7 @@ class NtfyListenerService : Service() {
     private var listeningJob: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var lastReceivedUrl: String? = null
+    private var lastMessageTime: Long = 0
 
     private val client = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS) // Disable timeout for long polling/streaming
@@ -93,10 +94,9 @@ class NtfyListenerService : Service() {
 
             updateNotification(getString(R.string.notification_listening, topic, server))
             
-            var sinceParam = "all" // Start by fetching all cached messages (up to 12h)
-            
             while (isActive) {
                 try {
+                    val sinceParam = if (lastMessageTime == 0L) "all" else lastMessageTime.toString()
                     val url = "${server.trimEnd('/')}/$topic/json?since=$sinceParam"
                     val request = Request.Builder()
                         .url(url)
@@ -114,14 +114,11 @@ class NtfyListenerService : Service() {
                             while (isActive) {
                                 val line = br.readLine() ?: break
                                 processLine(line, secretKey, copyToClipboard)
-                                // After successfully connecting and potentially receiving old messages,
-                                // we switch to 'stream' mode for subsequent attempts if this connection drops.
-                                sinceParam = "stream" 
                                 updateNotification(getString(R.string.notification_listening, topic, server))
                             }
                         }
                     }
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     if (isActive) {
                         updateNotification(getString(R.string.notification_conn_lost))
                         delay(5000)
@@ -134,6 +131,13 @@ class NtfyListenerService : Service() {
     private fun processLine(line: String, secretKey: String, copyToClipboard: Boolean) {
         try {
             val json = JSONObject(line)
+            
+            // Store last message time to resume properly after disconnect
+            val time = json.optLong("time")
+            if (time > 0) {
+                lastMessageTime = time
+            }
+
             if (json.optString("event") == "message") {
                 val rawMessage = json.optString("message")
                 
