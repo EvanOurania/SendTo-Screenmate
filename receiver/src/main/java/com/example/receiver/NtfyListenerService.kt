@@ -93,10 +93,11 @@ class NtfyListenerService : Service() {
 
             updateNotification(getString(R.string.notification_listening, topic, server))
             
-            val url = "${server.trimEnd('/')}/$topic/json"
+            var sinceParam = "all" // Start by fetching all cached messages (up to 12h)
             
             while (isActive) {
                 try {
+                    val url = "${server.trimEnd('/')}/$topic/json?since=$sinceParam"
                     val request = Request.Builder()
                         .url(url)
                         .build()
@@ -113,13 +114,17 @@ class NtfyListenerService : Service() {
                             while (isActive) {
                                 val line = br.readLine() ?: break
                                 processLine(line, secretKey, copyToClipboard)
+                                // After successfully connecting and potentially receiving old messages,
+                                // we switch to 'stream' mode for subsequent attempts if this connection drops.
+                                sinceParam = "stream" 
+                                updateNotification(getString(R.string.notification_listening, topic, server))
                             }
                         }
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
                     if (isActive) {
                         updateNotification(getString(R.string.notification_conn_lost))
-                        delay(10000)
+                        delay(5000)
                     }
                 }
             }
