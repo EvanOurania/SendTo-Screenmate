@@ -18,7 +18,7 @@ data class HistoryItem(val title: String, val url: String, val timestamp: Long)
 class HistoryRepository(val context: Context) {
     companion object {
         val HISTORY_KEY = stringPreferencesKey("history_items")
-        private const val MAX_HISTORY = 50
+        private const val MAX_HISTORY = 100
     }
 
     val historyItems: Flow<List<HistoryItem>> = context.historyDataStore.data
