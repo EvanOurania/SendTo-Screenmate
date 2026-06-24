@@ -16,6 +16,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -61,6 +62,7 @@ import java.util.UUID
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
@@ -304,7 +306,7 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
 
     if (showGenerateDialog) {
         AlertDialog(
-            onDismissRequest = { },
+            onDismissRequest = { showGenerateDialog = false },
             title = { Text(stringResource(R.string.generate_confirm_title)) },
             text = { Text(stringResource(R.string.generate_confirm_msg)) },
             confirmButton = {
@@ -319,13 +321,14 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
                             repository.saveSecretKey(newKey)
                             restartServiceIfRunning()
                         }
+                        showGenerateDialog = false
                     }
                 ) {
                     Text(stringResource(R.string.btn_confirm))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { }) {
+                TextButton(onClick = { showGenerateDialog = false }) {
                     Text(stringResource(R.string.btn_cancel))
                 }
             }
@@ -560,7 +563,7 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
                         }
                         
                         Button(
-                            onClick = { },
+                            onClick = { showGenerateDialog = true },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                         ) {
