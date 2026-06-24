@@ -23,7 +23,11 @@ Install this on your primary phone. It allows you to "Share" any text, URL, or G
 
 ### 2. Receiver
 Install this on the device that should open the links (e.g., your car's tablet).
-- **Features:** Generates a secure random Topic, displays a configuration QR Code, and runs a persistent background service to open incoming links instantly.
+- **Features:**
+    - **Smart History:** A new dedicated section that stores all received links and locations for easy access later.
+    - **Advanced Content Handling:** Automatically distinguishes between web links, physical addresses, and coordinates, opening the correct app (Browser or Maps/Waze) or copying text if needed.
+    - **One-Tap Notification:** The persistent notification now allows you to re-open the last received link instantly with a dedicated button.
+    - **Connection & Security:** Generates a secure random Topic, displays a configuration QR Code, and runs a persistent background service to open incoming links instantly.
 - **Reliability:** Built with `Foreground Service`, `WakeLock`, and custom permission management to ensure it stays active even when the screen is off or the app is minimized.
 
 ---
