@@ -1,33 +1,70 @@
 package com.example.sendtoscreenmate
 
-import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ContentPaste
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.fromHtml
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.fromHtml
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
@@ -43,6 +80,9 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 
 class MainActivity : ComponentActivity() {
 
@@ -104,7 +144,7 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background,
                     ) {
-                        SettingsScreen(repository)
+                        MainScreen(repository)
                     }
                 }
             }
@@ -112,25 +152,62 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIncomingData(intent: Intent) {
-        val extractedData = when (intent.action) {
-            Intent.ACTION_SEND -> {
-                val fullText = intent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
-                extractUrl(fullText)
+        val fullText = intent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
+        val subject = intent.getStringExtra(Intent.EXTRA_SUBJECT) ?: ""
+        val dataString = intent.dataString ?: ""
+        
+        var url = extractUrl(fullText)
+        
+        // Se non troviamo un URL nel testo, proviamo a vedere se l'intent ha un data geo:
+        if (url.isBlank() && dataString.startsWith("geo:")) {
+            url = dataString
+        }
+        
+        var title = ""
+        
+        if (intent.action == Intent.ACTION_SEND) {
+            // Priorità al Subject
+            if (subject.isNotBlank()) {
+                title = subject.trim()
+            } else if (url.isNotBlank()) {
+                // Estraiamo quello che precede l'URL
+                val textBeforeUrl = fullText.substringBefore(url).trim()
+                if (textBeforeUrl.isNotBlank()) {
+                    // Aggiungiamo " - " ai separatori per app come Electra
+                    title = textBeforeUrl.split("\n", "·", " - ").first().trim()
+                }
             }
-            Intent.ACTION_VIEW, "android.intent.action.NAVIGATE" -> intent.dataString
-            else -> null
+            
+            // Se ancora non c'è titolo ed è un link geo, cerchiamo l'etichetta (Label)
+            if (title.isBlank() && url.startsWith("geo:")) {
+                title = extractGeoLabel(url)
+            }
+        } else if (intent.action == Intent.ACTION_VIEW || intent.action == "android.intent.action.NAVIGATE") {
+            // Per i geo: link diretti
+            title = extractGeoLabel(dataString).ifBlank { "Position" }
+            if (url.isBlank()) url = dataString
         }
 
-        if (extractedData != null) {
-            performSendData(extractedData)
+        if (url.isNotBlank()) {
+            val geoLabel = if (url.startsWith("geo:")) extractGeoLabel(url) else ""
+            performSendData(url, title.ifBlank { geoLabel.ifBlank { "Location" } })
+        } else if (fullText.isNotBlank()) {
+            performSendData(fullText, title.ifBlank { "Text Message" })
         } else {
             Toast.makeText(this, getString(R.string.no_data_error), Toast.LENGTH_SHORT).show()
             finish()
         }
     }
 
-    private fun performSendData(data: String) {
-        if (data.length > 3000) {
+    private fun performSendData(data: String, title: String) {
+        // Prepare a JSON payload so we can include the title
+        val json = JSONObject().apply {
+            put("url", data)
+            put("title", title)
+        }
+        val finalPayload = json.toString()
+
+        if (finalPayload.length > 3000) {
             Toast.makeText(this, R.string.char_limit_exceeded, Toast.LENGTH_LONG).show()
             return
         }
@@ -139,21 +216,81 @@ class MainActivity : ComponentActivity() {
             val serviceType = repository.serviceType.first()
             if (serviceType == WebhookRepository.SERVICE_MACRODROID) {
                 val url = repository.webhookUrl.first()
-                sendToMacroDroid(url, data)
+                sendToMacroDroid(url, data) // MacroDroid still expects just the URL/Value
             } else {
                 val server = repository.ntfyServer.first()
                 val topic = repository.ntfyTopic.first()
                 val secretKey = repository.secretKey.first()
                 val encryptionActive = repository.encryptionEnabled.first()
-                sendToNtfy(server, topic, secretKey, encryptionActive, data)
+                sendToNtfy(server, topic, secretKey, encryptionActive, finalPayload)
             }
         }
     }
 
     private fun extractUrl(text: String): String {
-        val urlRegex = Regex("(https?://\\S+)")
+        // Se il testo è già solo un URI geo:, lo prendiamo tutto
+        if (text.trim().startsWith("geo:", ignoreCase = true)) return text.trim()
+        
+        // Regex più permissiva per catturare l'intero link anche con caratteri speciali
+        // Includiamo [^\\s] per prendere tutto fino al primo spazio bianco
+        val urlRegex = Regex("((https?://|geo:)[^\\s\\n\\r]+)")
         val match = urlRegex.find(text)
-        return match?.value ?: text
+        return match?.value ?: ""
+    }
+
+    private fun extractGeoLabel(geoUri: String): String {
+        try {
+            // 1. Cerchiamo il parametro q= (molto comune per indirizzi testuali)
+            val qIndex = geoUri.indexOf("q=")
+            if (qIndex != -1) {
+                var value = geoUri.substring(qIndex + 2)
+                
+                // Ci fermiamo ai delimitatori comuni
+                val endDelimiters = charArrayOf('&', '@', '#')
+                var firstDelimiter = -1
+                for (d in endDelimiters) {
+                    val idx = value.indexOf(d)
+                    if (idx != -1 && (firstDelimiter == -1 || idx < firstDelimiter)) {
+                        firstDelimiter = idx
+                    }
+                }
+                
+                if (firstDelimiter != -1) {
+                    value = value.substring(0, firstDelimiter)
+                }
+                
+                // Decodifichiamo (gestisce %20, +, ecc)
+                val decoded = try {
+                    URLDecoder.decode(value, StandardCharsets.UTF_8.name()).trim()
+                } catch (_: Exception) {
+                    value.replace("%20", " ").replace("+", " ").trim()
+                }
+
+                // Se il risultato contiene delle parentesi, estraiamo solo il contenuto (l'etichetta)
+                // Questo pulisce casi come "45.123,9.123(Nome Posto)"
+                val labelMatch = Regex("\\((.+)\\)").find(decoded)
+                if (labelMatch != null) {
+                    return labelMatch.groupValues[1].trim()
+                }
+                
+                return decoded
+            }
+
+            // 2. Fallback: cerchiamo l'etichetta tra parentesi (standard geo:)
+            val labelRegex = Regex("\\(([^)]+)\\)")
+            val labelMatch = labelRegex.find(geoUri)
+            if (labelMatch != null) {
+                val value = labelMatch.groupValues[1]
+                return try {
+                    URLDecoder.decode(value, StandardCharsets.UTF_8.name()).trim()
+                } catch (_: Exception) {
+                    value.trim()
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return ""
     }
 
     private fun sendToMacroDroid(webhookUrl: String, text: String) {
@@ -189,13 +326,13 @@ class MainActivity : ComponentActivity() {
             } else {
                 Toast.makeText(this@MainActivity, R.string.error_ntfy, Toast.LENGTH_SHORT).show()
             }
-            if (intent?.action != null && (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_VIEW || intent.action == "android.intent.action.NAVIGATE")) {
+            if (isShareOrViewIntent()) {
                 finish()
             }
         }
     }
 
-    private fun sendToNtfy(server: String, topic: String, secretKey: String, encryptionEnabled: Boolean, text: String) {
+    private fun sendToNtfy(server: String, topic: String, secretKey: String, encryptionEnabled: Boolean, payload: String) {
         lifecycleScope.launch {
             val success = withContext(Dispatchers.IO) {
                 try {
@@ -203,17 +340,15 @@ class MainActivity : ComponentActivity() {
                     val baseUrl = if (server.endsWith("/")) server else "$server/"
                     val finalUrl = "$baseUrl$topic"
                     
-                    val payload = if (encryptionEnabled && secretKey.isNotBlank()) {
-                        Log.d("E2EE", "Sending ENCRYPTED message")
-                        CryptoManager.encrypt(text, secretKey)
+                    val encryptedPayload = if (encryptionEnabled && secretKey.isNotBlank()) {
+                        CryptoManager.encrypt(payload, secretKey)
                     } else {
-                        Log.d("E2EE", "Sending PLAIN TEXT message")
-                        text
+                        payload
                     }
                     
                     val request = Request.Builder()
                         .url(finalUrl)
-                        .post(payload.toRequestBody("text/plain".toMediaType()))
+                        .post(encryptedPayload.toRequestBody("text/plain".toMediaType()))
                         .build()
 
                     client.newCall(request).execute().use { response ->
@@ -230,62 +365,92 @@ class MainActivity : ComponentActivity() {
             } else {
                 Toast.makeText(this@MainActivity, R.string.error_ntfy, Toast.LENGTH_SHORT).show()
             }
-            if (intent?.action != null && (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_VIEW || intent.action == "android.intent.action.NAVIGATE")) {
+            if (isShareOrViewIntent()) {
                 finish()
             }
         }
     }
 
-    // Composable internal logic exposed for SettingsScreen
+    private fun isShareOrViewIntent(): Boolean {
+        return intent?.action != null && (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_VIEW || intent.action == "android.intent.action.NAVIGATE")
+    }
+
+    // Composable internal logic exposed for Screens
     fun triggerManualSend(data: String) {
-        performSendData(data)
+        val url = extractUrl(data)
+        var title = ""
+        var finalData = data
+
+        if (url.isNotBlank()) {
+            finalData = url
+            val textBeforeUrl = data.substringBefore(url).trim()
+            if (textBeforeUrl.isNotBlank()) {
+                title = textBeforeUrl.split("\n", "·", " - ").first().trim()
+            }
+            if (title.isBlank() && url.startsWith("geo:")) {
+                title = extractGeoLabel(url)
+            }
+            if (title.isBlank()) title = "Location"
+        } else {
+            title = "Text Message"
+        }
+        performSendData(finalData, title)
+    }
+}
+
+@Composable
+fun MainScreen(repository: WebhookRepository) {
+    var currentTab by remember { mutableIntStateOf(0) }
+    
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    icon = { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null) },
+                    label = { Text(stringResource(R.string.btn_send)) },
+                    selected = currentTab == 0,
+                    onClick = { currentTab = 0 }
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                    label = { Text(stringResource(R.string.settings_title)) },
+                    selected = currentTab == 1,
+                    onClick = { currentTab = 1 }
+                )
+            }
+        }
+    ) { padding ->
+        if (currentTab == 0) {
+            SendScreen(padding)
+        } else {
+            SettingsScreen(repository, padding)
+        }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(repository: WebhookRepository) {
-    val currentService by repository.serviceType.collectAsState(initial = WebhookRepository.SERVICE_NTFY)
-    val savedMacroDroidUrl by repository.webhookUrl.collectAsState(initial = WebhookRepository.DEFAULT_URL)
-    val savedNtfyServer by repository.ntfyServer.collectAsState(initial = WebhookRepository.DEFAULT_NTFY_SERVER)
-    val savedNtfyTopic by repository.ntfyTopic.collectAsState(initial = "")
-    val savedEncryptionEnabled by repository.encryptionEnabled.collectAsState(initial = true)
-
-    var macroDroidUrl by remember { mutableStateOf("") }
-    var ntfyServer by remember { mutableStateOf("") }
-    var ntfyTopic by remember { mutableStateOf("") }
-    var encryptionEnabled by remember { mutableStateOf(true) }
+fun SendScreen(navigationPadding: PaddingValues) {
     var manualText by remember { mutableStateOf("") }
-    
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-
-    LaunchedEffect(savedMacroDroidUrl, savedNtfyServer, savedNtfyTopic, savedEncryptionEnabled) {
-        macroDroidUrl = savedMacroDroidUrl
-        ntfyServer = savedNtfyServer
-        ntfyTopic = savedNtfyTopic
-        encryptionEnabled = savedEncryptionEnabled
-    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             LargeTopAppBar(
-                title = { Text(stringResource(R.string.settings_title), fontWeight = FontWeight.Medium) },
+                title = { Text(stringResource(R.string.app_name), fontWeight = FontWeight.Medium) },
                 scrollBehavior = scrollBehavior
             )
         }
-    ) { padding ->
+    ) { scaffoldPadding ->
         Column(
             modifier = Modifier
-                .padding(padding)
+                .padding(top = scaffoldPadding.calculateTopPadding())
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 32.dp),
+                .padding(bottom = navigationPadding.calculateBottomPadding() + 32.dp),
         ) {
-            
-            // Section: Input
             SectionHeader(stringResource(R.string.section_input))
             SettingsGroupCard {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -310,10 +475,10 @@ fun SettingsScreen(repository: WebhookRepository) {
                                 val data = clipboard.primaryClip?.getItemAt(0)?.text?.toString()
                                 if (data != null) {
                                     val newText = manualText + data
-                                    if (newText.length <= 3000) {
-                                        manualText = newText
+                                    manualText = if (newText.length <= 3000) {
+                                        newText
                                     } else {
-                                        manualText = newText.take(3000)
+                                        newText.take(3000)
                                     }
                                 }
                             }) {
@@ -323,8 +488,8 @@ fun SettingsScreen(repository: WebhookRepository) {
                                 )
                             }
                         },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp, max = 250.dp),
-                        maxLines = 10
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 150.dp, max = 300.dp),
+                        maxLines = 15
                     )
                     Button(
                         onClick = {
@@ -340,8 +505,64 @@ fun SettingsScreen(repository: WebhookRepository) {
                     }
                 }
             }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            SettingsGroupCard {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    val instr = stringResource(R.string.manual_send_note)
+                    Text(
+                        text = instr,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
 
-            // Section: Service
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(repository: WebhookRepository, navigationPadding: PaddingValues) {
+    val currentService by repository.serviceType.collectAsState(initial = WebhookRepository.SERVICE_NTFY)
+    val savedMacroDroidUrl by repository.webhookUrl.collectAsState(initial = WebhookRepository.DEFAULT_URL)
+    val savedNtfyServer by repository.ntfyServer.collectAsState(initial = WebhookRepository.DEFAULT_NTFY_SERVER)
+    val savedNtfyTopic by repository.ntfyTopic.collectAsState(initial = "")
+    val savedEncryptionEnabled by repository.encryptionEnabled.collectAsState(initial = true)
+
+    var macroDroidUrl by remember { mutableStateOf("") }
+    var ntfyServer by remember { mutableStateOf("") }
+    var ntfyTopic by remember { mutableStateOf("") }
+    var encryptionEnabled by remember { mutableStateOf(true) }
+    
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    LaunchedEffect(savedMacroDroidUrl, savedNtfyServer, savedNtfyTopic, savedEncryptionEnabled) {
+        macroDroidUrl = savedMacroDroidUrl
+        ntfyServer = savedNtfyServer
+        ntfyTopic = savedNtfyTopic
+        encryptionEnabled = savedEncryptionEnabled
+    }
+
+    Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            LargeTopAppBar(
+                title = { Text(stringResource(R.string.settings_title), fontWeight = FontWeight.Medium) },
+                scrollBehavior = scrollBehavior
+            )
+        }
+    ) { scaffoldPadding ->
+        Column(
+            modifier = Modifier
+                .padding(top = scaffoldPadding.calculateTopPadding())
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = navigationPadding.calculateBottomPadding() + 32.dp),
+        ) {
+            
             SectionHeader(stringResource(R.string.section_service))
             SettingsGroupCard {
                 Column(modifier = Modifier.padding(vertical = 8.dp)) {
@@ -359,7 +580,6 @@ fun SettingsScreen(repository: WebhookRepository) {
                 }
             }
 
-            // Section: Configuration
             SectionHeader(stringResource(R.string.section_configuration))
             if (currentService == WebhookRepository.SERVICE_NTFY) {
                 SettingsGroupCard {
@@ -455,7 +675,6 @@ fun SettingsScreen(repository: WebhookRepository) {
                 }
             }
 
-            // Section: Instructions
             SectionHeader(stringResource(R.string.section_instructions))
             SettingsGroupCard {
                 Column(modifier = Modifier.padding(16.dp)) {

@@ -23,6 +23,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import android.net.Uri
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
@@ -34,6 +35,7 @@ class NtfyListenerService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private var listeningJob: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private var lastReceivedUrl: String? = null
 
     private val client = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS) // Disable timeout for long polling/streaming
@@ -57,10 +59,18 @@ class NtfyListenerService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
-        if (action == ACTION_STOP) {
-            updateNotification(getString(R.string.notification_stopping))
-            stopSelf()
-            return START_NOT_STICKY
+        when (action) {
+            ACTION_STOP -> {
+                updateNotification(getString(R.string.notification_stopping))
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            ACTION_REOPEN -> {
+                @Suppress("DEPRECATION")
+                sendBroadcast(Intent(Intent.ACTION_CLOSE_SYSTEM_DIALOGS))
+                lastReceivedUrl?.let { openUrl(it) }
+                return START_STICKY
+            }
         }
 
         startListening()
@@ -122,8 +132,6 @@ class NtfyListenerService : Service() {
             if (json.optString("event") == "message") {
                 val rawMessage = json.optString("message")
                 
-                // Il ricevitore tenta sempre di decriptare se c'è una chiave, 
-                // ma gestisce il fallback al testo chiaro se fallisce o se la chiave è vuota.
                 val decryptedMessage = if (secretKey.isNotBlank()) {
                     try {
                         CryptoManager.decrypt(rawMessage, secretKey)
@@ -134,12 +142,49 @@ class NtfyListenerService : Service() {
                     rawMessage
                 }
 
-                if (copyToClipboard) {
-                    copyToClipboard(decryptedMessage)
+                // Try to parse the message as JSON to get the title and URL
+                var displayTitle: String
+                var targetUrl: String
+
+                val messageToParse = decryptedMessage.trim()
+                if (messageToParse.startsWith("{") && messageToParse.endsWith("}")) {
+                    try {
+                        val msgJson = JSONObject(messageToParse)
+                        targetUrl = msgJson.optString("url")
+                        displayTitle = msgJson.optString("title")
+                    } catch (_: Exception) {
+                        targetUrl = decryptedMessage
+                        displayTitle = ""
+                    }
+                } else {
+                    targetUrl = decryptedMessage
+                    displayTitle = ""
                 }
 
-                if (decryptedMessage.startsWith("http") || decryptedMessage.startsWith("geo:")) {
-                    openUrl(decryptedMessage)
+                if (targetUrl.isBlank()) return
+
+                if (copyToClipboard) {
+                    copyToClipboard(targetUrl)
+                }
+
+                // Add to history
+                serviceScope.launch {
+                    val historyRepo = HistoryRepository(this@NtfyListenerService)
+                    historyRepo.addHistoryItem(displayTitle, targetUrl)
+                }
+
+                val isAddress = targetUrl.contains(Regex("\\b\\d{5}\\b")) || 
+                               listOf("via", "piazza", "corso", "viale", "largo", "vicolo", "strada", "piazzale").any { targetUrl.contains(it, ignoreCase = true) }
+
+                if (targetUrl.startsWith("http") || targetUrl.startsWith("geo:") || isAddress) {
+                    val finalUrl = if (isAddress && !targetUrl.startsWith("geo:") && !targetUrl.startsWith("http")) {
+                        "geo:0,0?q=${Uri.encode(targetUrl)}"
+                    } else {
+                        targetUrl
+                    }
+                    lastReceivedUrl = finalUrl
+                    updateNotification(getString(R.string.notification_title)) 
+                    openUrl(finalUrl)
                 }
             }
         } catch (_: Exception) {
@@ -153,7 +198,6 @@ class NtfyListenerService : Service() {
             val clip = ClipData.newPlainText("received text", text)
             clipboard.setPrimaryClip(clip)
             
-            // Per mostrare il toast dal servizio, dobbiamo usare il Dispatcher Main
             CoroutineScope(Dispatchers.Main).launch {
                 Toast.makeText(applicationContext, R.string.text_copied_toast, Toast.LENGTH_SHORT).show()
             }
@@ -176,7 +220,7 @@ class NtfyListenerService : Service() {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "Ntfy Listener Service",
-                NotificationManager.IMPORTANCE_LOW,
+                NotificationManager.IMPORTANCE_DEFAULT,
             )
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
@@ -196,24 +240,32 @@ class NtfyListenerService : Service() {
             this, 0, mainIntent, PendingIntent.FLAG_IMMUTABLE
         )
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.notification_title))
             .setContentText(content)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentIntent(mainPendingIntent)
             .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.btn_stop), stopPendingIntent)
-            .build()
+
+        lastReceivedUrl?.let {
+            val reopenIntent = Intent(this, NtfyListenerService::class.java).apply {
+                action = ACTION_REOPEN
+            }
+            val reopenPendingIntent = PendingIntent.getService(
+                this, 1, reopenIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            builder.addAction(android.R.drawable.ic_menu_revert, getString(R.string.btn_reopen), reopenPendingIntent)
+        }
+
+        return builder.build()
     }
 
     private fun updateNotification(content: String) {
         val notification = createNotification(content)
         val manager = getSystemService(NotificationManager::class.java)
         manager.notify(NOTIFICATION_ID, notification)
-    }
-
-    override fun onTaskRemoved(rootIntent: Intent?) {
-        // Log or handle task removal if necessary
     }
 
     override fun onDestroy() {
@@ -228,6 +280,7 @@ class NtfyListenerService : Service() {
         private const val CHANNEL_ID = "ntfy_listener_channel"
         private const val NOTIFICATION_ID = 1
         const val ACTION_STOP = "STOP_SERVICE"
+        const val ACTION_REOPEN = "REOPEN_URL"
 
         @Suppress("DEPRECATION")
         fun isRunning(context: Context): Boolean {

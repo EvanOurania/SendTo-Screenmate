@@ -17,6 +17,7 @@
     <string name="disable_battery">Disable Battery Optimization</string>
     <string name="btn_start">Start</string>
     <string name="btn_stop">Stop</string>
+    <string name="btn_reopen">Reopen Last Link</string>
 
     <string name="save_success">Settings saved and listener started!</string>
     <string name="generate_topic">Generate Topic and Key</string>
@@ -40,4 +41,7 @@
     <string name="section_permissions">Permissions</string>
     <string name="section_configuration">ntfy.sh Configuration</string>
     <string name="section_instructions">Instructions</string>
+    <string name="section_history">History</string>
+    <string name="btn_clear_history">Clear History</string>
+    <string name="no_history">No items in history yet</string>
 </resources>

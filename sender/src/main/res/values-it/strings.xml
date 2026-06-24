@@ -42,4 +42,5 @@
     <string name="section_service">Servizio</string>
     <string name="section_configuration">Configurazione</string>
     <string name="section_instructions">Istruzioni</string>
+    <string name="manual_send_note">Nota: Qualsiasi testo inserito qui sarà analizzato per trovare posizioni o link prima dell\'invio.</string>
 </resources>

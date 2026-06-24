@@ -42,4 +42,5 @@
     <string name="section_service">Service</string>
     <string name="section_configuration">Configuration</string>
     <string name="section_instructions">Instructions</string>
+    <string name="manual_send_note">Note: Any text entered here will be processed for locations/links before sending.</string>
 </resources>

@@ -17,6 +17,7 @@
     <string name="disable_battery">Disabilita Ottimizzazione Batteria</string>
     <string name="btn_start">Avvia</string>
     <string name="btn_stop">Stop</string>
+    <string name="btn_reopen">Riapri ultimo link</string>
 
     <string name="save_success">Impostazioni salvate e ascolto avviato!</string>
     <string name="generate_topic">Genera Topic e Chiave</string>
@@ -40,4 +41,7 @@
     <string name="section_permissions">Permessi</string>
     <string name="section_configuration">Configurazione ntfy.sh</string>
     <string name="section_instructions">Istruzioni</string>
+    <string name="section_history">Cronologia</string>
+    <string name="btn_clear_history">Cancella Cronologia</string>
+    <string name="no_history">Nessun elemento in cronologia</string>
 </resources>

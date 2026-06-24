@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
@@ -18,11 +19,18 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,6 +54,9 @@ import com.example.receiver.ui.theme.ReceiverTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
 class MainActivity : ComponentActivity() {
@@ -58,16 +69,165 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    ReceiverScreen()
+                    MainScreen()
                 }
             }
         }
     }
 }
 
+@Composable
+fun MainScreen() {
+    var currentTab by remember { mutableIntStateOf(0) }
+    
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.History, contentDescription = null) },
+                    label = { Text(stringResource(R.string.section_history)) },
+                    selected = currentTab == 0,
+                    onClick = { currentTab = 0 }
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                    label = { Text(stringResource(R.string.settings_title)) },
+                    selected = currentTab == 1,
+                    onClick = { currentTab = 1 }
+                )
+            }
+        }
+    ) { padding ->
+        // Non applichiamo il padding qui per permettere alla lista di scorrere "sotto" la barra
+        if (currentTab == 0) {
+            HistoryScreen(padding)
+        } else {
+            ReceiverScreen(padding)
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReceiverScreen() {
+fun HistoryScreen(navigationPadding: PaddingValues) {
+    val context = LocalContext.current
+    val repository = remember { HistoryRepository(context) }
+    val historyItems by repository.historyItems.collectAsState(initial = emptyList())
+    val scope = rememberCoroutineScope()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            LargeTopAppBar(
+                title = { Text(stringResource(R.string.section_history), fontWeight = FontWeight.Medium) },
+                actions = {
+                    if (historyItems.isNotEmpty()) {
+                        IconButton(onClick = { scope.launch { repository.clearHistory() } }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Clear History")
+                        }
+                    }
+                },
+                scrollBehavior = scrollBehavior
+            )
+        }
+    ) { scaffoldPadding ->
+        if (historyItems.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(scaffoldPadding)
+                    .padding(navigationPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(stringResource(R.string.no_history), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                // Sommiamo il padding della Top Bar (scaffoldPadding) e della Nav Bar (navigationPadding)
+                contentPadding = PaddingValues(
+                    top = scaffoldPadding.calculateTopPadding() + 16.dp,
+                    bottom = navigationPadding.calculateBottomPadding() + 32.dp,
+                    start = 16.dp,
+                    end = 16.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(historyItems) { item ->
+                    HistoryItemCard(item) {
+                        val isAddress = item.url.contains(Regex("\\b\\d{5}\\b")) || 
+                                       listOf("via", "piazza", "corso", "viale", "largo", "vicolo", "strada", "piazzale").any { item.url.contains(it, ignoreCase = true) }
+
+                        if (item.url.startsWith("http") || item.url.startsWith("geo:") || isAddress) {
+                            val uri = if (isAddress && !item.url.startsWith("geo:") && !item.url.startsWith("http")) {
+                                "geo:0,0?q=${Uri.encode(item.url)}".toUri()
+                            } else {
+                                item.url.toUri()
+                            }
+                            
+                            val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            try {
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                copyText(context, item.url)
+                            }
+                        } else {
+                            copyText(context, item.url)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun copyText(context: Context, text: String) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val clip = ClipData.newPlainText("received text", text)
+    clipboard.setPrimaryClip(clip)
+    Toast.makeText(context, R.string.text_copied_toast, Toast.LENGTH_SHORT).show()
+}
+
+@Composable
+fun HistoryItemCard(item: HistoryItem, onClick: () -> Unit) {
+    val sdf = remember { SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()) }
+    val dateStr = remember(item.timestamp) { sdf.format(Date(item.timestamp)) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    text = item.title.ifBlank { "Location/Link" },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = dateStr,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = item.url,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 2
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ReceiverScreen(navigationPadding: PaddingValues) {
     val context = LocalContext.current
     val repository = remember { ReceiverRepository(context) }
     val scope = rememberCoroutineScope()
@@ -144,7 +304,7 @@ fun ReceiverScreen() {
 
     if (showGenerateDialog) {
         AlertDialog(
-            onDismissRequest = { showGenerateDialog = false },
+            onDismissRequest = { },
             title = { Text(stringResource(R.string.generate_confirm_title)) },
             text = { Text(stringResource(R.string.generate_confirm_msg)) },
             confirmButton = {
@@ -159,14 +319,13 @@ fun ReceiverScreen() {
                             repository.saveSecretKey(newKey)
                             restartServiceIfRunning()
                         }
-                        showGenerateDialog = false
                     }
                 ) {
                     Text(stringResource(R.string.btn_confirm))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showGenerateDialog = false }) {
+                TextButton(onClick = { }) {
                     Text(stringResource(R.string.btn_cancel))
                 }
             }
@@ -181,13 +340,13 @@ fun ReceiverScreen() {
                 scrollBehavior = scrollBehavior
             )
         }
-    ) { padding ->
+    ) { scaffoldPadding ->
         Column(
             modifier = Modifier
-                .padding(padding)
+                .padding(top = scaffoldPadding.calculateTopPadding())
                 .fillMaxSize()
         ) {
-            // Fixed Status Card with Shadow
+            // Fixed Status Card
             Card(
                 colors = CardDefaults.cardColors(
                     containerColor = if (isServiceRunning) 
@@ -277,12 +436,12 @@ fun ReceiverScreen() {
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(bottom = 32.dp),
+                    .padding(bottom = navigationPadding.calculateBottomPadding() + 32.dp),
             ) {
                 
                 // Section: Permissions
+                SectionHeader(stringResource(R.string.section_permissions))
                 if (isBatteryOptimized || !canDrawOverlays) {
-                    SectionHeader(stringResource(R.string.section_permissions))
                     SettingsGroupCard {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
@@ -317,7 +476,7 @@ fun ReceiverScreen() {
                                         context.startActivity(intent)
                                     },
                                     modifier = Modifier.fillMaxWidth(),
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                                 ) {
                                     Text(stringResource(R.string.enable_overlay))
                                 }
@@ -397,12 +556,11 @@ fun ReceiverScreen() {
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(stringResource(R.string.encryption_label), style = MaterialTheme.typography.bodyLarge)
-                                Text(stringResource(R.string.encryption_note), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         
                         Button(
-                            onClick = { showGenerateDialog = true },
+                            onClick = { },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                         ) {
@@ -475,4 +633,3 @@ fun SettingsGroupCard(content: @Composable () -> Unit) {
         content()
     }
 }
-
