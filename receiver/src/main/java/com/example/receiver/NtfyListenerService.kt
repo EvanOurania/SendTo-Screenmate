@@ -66,12 +66,6 @@ class NtfyListenerService : Service() {
                 stopSelf()
                 return START_NOT_STICKY
             }
-            ACTION_REOPEN -> {
-                @Suppress("DEPRECATION")
-                sendBroadcast(Intent(Intent.ACTION_CLOSE_SYSTEM_DIALOGS))
-                lastReceivedUrl?.let { openUrl(it) }
-                return START_STICKY
-            }
         }
 
         startListening()
@@ -82,11 +76,20 @@ class NtfyListenerService : Service() {
         listeningJob?.cancel()
         listeningJob = serviceScope.launch {
             val repository = ReceiverRepository(this@NtfyListenerService)
+            val historyRepo = HistoryRepository(this@NtfyListenerService)
+            
             val topic = repository.ntfyTopic.first()
             val server = repository.ntfyServer.first()
             val secretKey = repository.secretKey.first()
             val copyToClipboard = repository.copyToClipboard.first()
             val persistedLastTime = repository.lastMessageTime.first()
+
+            // Initialize lastReceivedUrl from history for the "Reopen" button
+            if (lastReceivedUrl == null) {
+                historyRepo.historyItems.first().firstOrNull()?.let {
+                    lastReceivedUrl = formatTargetUrl(it.url)
+                }
+            }
 
             if (topic.isBlank()) {
                 updateNotification(getString(R.string.notification_topic_not_set))
@@ -192,15 +195,8 @@ class NtfyListenerService : Service() {
                     historyRepo.addHistoryItem(displayTitle, targetUrl)
                 }
 
-                val isAddress = targetUrl.contains(Regex("\\b\\d{5}\\b")) || 
-                               listOf("via", "piazza", "corso", "viale", "largo", "vicolo", "strada", "piazzale").any { targetUrl.contains(it, ignoreCase = true) }
-
-                if (targetUrl.startsWith("http") || targetUrl.startsWith("geo:") || isAddress) {
-                    val finalUrl = if (isAddress && !targetUrl.startsWith("geo:") && !targetUrl.startsWith("http")) {
-                        "geo:0,0?q=${Uri.encode(targetUrl)}"
-                    } else {
-                        targetUrl
-                    }
+                val finalUrl = formatTargetUrl(targetUrl)
+                if (finalUrl.isNotBlank()) {
                     lastReceivedUrl = finalUrl
                     updateNotification(getString(R.string.notification_title)) 
                     openUrl(finalUrl)
@@ -208,6 +204,21 @@ class NtfyListenerService : Service() {
             }
         } catch (_: Exception) {
             // Ignore parse errors
+        }
+    }
+
+    private fun formatTargetUrl(targetUrl: String): String {
+        val isAddress = targetUrl.contains(Regex("\\b\\d{5}\\b")) || 
+                       listOf("via", "piazza", "corso", "viale", "largo", "vicolo", "strada", "piazzale").any { targetUrl.contains(it, ignoreCase = true) }
+
+        return if (targetUrl.startsWith("http") || targetUrl.startsWith("geo:") || isAddress) {
+            if (isAddress && !targetUrl.startsWith("geo:") && !targetUrl.startsWith("http")) {
+                "geo:0,0?q=${Uri.encode(targetUrl)}"
+            } else {
+                targetUrl
+            }
+        } else {
+            ""
         }
     }
 
@@ -268,11 +279,11 @@ class NtfyListenerService : Service() {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.btn_stop), stopPendingIntent)
 
-        lastReceivedUrl?.let {
-            val reopenIntent = Intent(this, NtfyListenerService::class.java).apply {
-                action = ACTION_REOPEN
+        lastReceivedUrl?.let { url ->
+            val reopenIntent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            val reopenPendingIntent = PendingIntent.getService(
+            val reopenPendingIntent = PendingIntent.getActivity(
                 this, 1, reopenIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
             builder.addAction(android.R.drawable.ic_menu_revert, getString(R.string.btn_reopen), reopenPendingIntent)
@@ -299,7 +310,6 @@ class NtfyListenerService : Service() {
         private const val CHANNEL_ID = "ntfy_listener_channel"
         private const val NOTIFICATION_ID = 1
         const val ACTION_STOP = "STOP_SERVICE"
-        const val ACTION_REOPEN = "REOPEN_URL"
 
         @Suppress("DEPRECATION")
         fun isRunning(context: Context): Boolean {
