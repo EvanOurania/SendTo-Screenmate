@@ -5,16 +5,12 @@ plugins {
 
 android {
     namespace = "com.example.receiver"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.receiver"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 3
         versionName = "1.1.1"
 
