@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -19,6 +20,7 @@ class ReceiverRepository(val context: Context) {
         val NTFY_SERVER_KEY = stringPreferencesKey("ntfy_server")
         val SECRET_KEY_KEY = stringPreferencesKey("secret_key")
         val COPY_TO_CLIPBOARD_KEY = booleanPreferencesKey("copy_to_clipboard")
+        val LAST_MESSAGE_TIME_KEY = longPreferencesKey("last_message_time")
         
         const val DEFAULT_NTFY_SERVER = "https://ntfy.sh"
     }
@@ -43,6 +45,11 @@ class ReceiverRepository(val context: Context) {
             preferences[COPY_TO_CLIPBOARD_KEY] ?: false
         }
 
+    val lastMessageTime: Flow<Long> = context.dataStore.data
+        .map { preferences ->
+            preferences[LAST_MESSAGE_TIME_KEY] ?: 0L
+        }
+
     suspend fun saveNtfyConfig(topic: String, server: String) {
         context.dataStore.edit { preferences ->
             preferences[NTFY_TOPIC_KEY] = topic
@@ -59,6 +66,12 @@ class ReceiverRepository(val context: Context) {
     suspend fun saveCopyToClipboard(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[COPY_TO_CLIPBOARD_KEY] = enabled
+        }
+    }
+
+    suspend fun saveLastMessageTime(time: Long) {
+        context.dataStore.edit { preferences ->
+            preferences[LAST_MESSAGE_TIME_KEY] = time
         }
     }
 }

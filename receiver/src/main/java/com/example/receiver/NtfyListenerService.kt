@@ -86,6 +86,7 @@ class NtfyListenerService : Service() {
             val server = repository.ntfyServer.first()
             val secretKey = repository.secretKey.first()
             val copyToClipboard = repository.copyToClipboard.first()
+            val persistedLastTime = repository.lastMessageTime.first()
 
             if (topic.isBlank()) {
                 updateNotification(getString(R.string.notification_topic_not_set))
@@ -94,6 +95,10 @@ class NtfyListenerService : Service() {
 
             updateNotification(getString(R.string.notification_listening, topic, server))
             
+            if (lastMessageTime == 0L) {
+                lastMessageTime = persistedLastTime
+            }
+
             while (isActive) {
                 try {
                     val sinceParam = if (lastMessageTime == 0L) "all" else lastMessageTime.toString()
@@ -136,6 +141,11 @@ class NtfyListenerService : Service() {
             val time = json.optLong("time")
             if (time > 0) {
                 lastMessageTime = time
+                // Persist to storage
+                serviceScope.launch {
+                    val repository = ReceiverRepository(this@NtfyListenerService)
+                    repository.saveLastMessageTime(time)
+                }
             }
 
             if (json.optString("event") == "message") {

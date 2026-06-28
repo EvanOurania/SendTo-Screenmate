@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Receiver</string>
+    <string name="app_name">ScreenMate Receiver</string>
     <string name="settings_title">Receiver Settings</string>
     <string name="ntfy_config">ntfy.sh Configuration</string>
     <string name="ntfy_server_label">Server (e.g., https://ntfy.sh)</string>
