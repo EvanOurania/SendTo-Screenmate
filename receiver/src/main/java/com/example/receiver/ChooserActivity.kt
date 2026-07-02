@@ -77,7 +77,7 @@ class ChooserActivity : ComponentActivity() {
                     }
                     "COPY_AND_OPEN_DIRECT" -> {
                         val intent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                         }
                         try {
                             startActivity(intent)
@@ -87,10 +87,9 @@ class ChooserActivity : ComponentActivity() {
                     }
                 }
             } else if (mode == "COPY_ONLY" || mode == "COPY_AND_OPEN_DIRECT") {
-                // If we are in a copy mode but copy is disabled, still handle the opening part
                 if (mode == "COPY_AND_OPEN_DIRECT") {
                     val intent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     }
                     try {
                         startActivity(intent)
@@ -144,55 +143,24 @@ class ChooserActivity : ComponentActivity() {
     }
 
     private fun executeAutoOpen(url: String, title: String, preferredApp: String) {
-        val isMapsLink = MapsUtils.isGoogleMapsLink(url)
         when (preferredApp) {
-            ReceiverRepository.APP_MAPS -> openWithPackage(url, "com.google.android.apps.maps")
+            ReceiverRepository.APP_MAPS -> {
+                val coords = MapsUtils.extractCoordinates(url)
+                val targetUri = if (coords != null) "geo:$coords?q=$coords" else url
+                openWithPackage(targetUri, "com.google.android.apps.maps")
+            }
             ReceiverRepository.APP_WAZE -> {
-                // 1. Try precise coords from URL
-                // 2. Try DMS coords from Title
-                val coords = extractCoordinates(url) ?: extractCoordinatesFromTitle(title)
-                val placeName = extractPlaceNameFromUrl(url) ?: title.ifBlank { null }
-                
-                val targetUri = if (coords != null) {
-                    if (placeName != null) {
-                        // Pass coords AND place name for Waze history/label
-                        "geo:$coords?q=$coords(${Uri.encode(placeName)})"
-                    } else {
-                        "geo:$coords?q=$coords"
-                    }
-                } else if (isMapsLink) {
-                    "geo:0,0?q=${Uri.encode(url)}"
-                } else {
-                    url
-                }
+                val targetUri = MapsUtils.getWazeUri(url, title)
                 openWithPackage(targetUri, "com.waze")
             }
             ReceiverRepository.APP_OTHER -> {
-                val targetUri = if (isMapsLink && !url.startsWith("geo:")) {
-                    "geo:0,0?q=${Uri.encode(url)}"
-                } else {
-                    url
-                }
+                val targetUri = MapsUtils.getGenericMapsUri(url)
                 openWithPackage(targetUri, null)
             }
         }
     }
 
     private fun openWithPackage(uri: String, packageName: String?) {
-        val isMapsPackage = packageName == "com.google.android.apps.maps"
-        val isMapsUrl = MapsUtils.isGoogleMapsLink(uri)
-        
-        if (isMapsPackage && isMapsUrl) {
-            val intent = Intent(Intent.ACTION_VIEW, uri.toUri()).apply {
-                // MINIMAL FLAGS: NEW_TASK is required, SINGLE_TOP preserves split-screen better than CLEAR_TOP
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            }
-            try {
-                startActivity(intent)
-                return
-            } catch (_: Exception) {}
-        }
-
         val intent = Intent(Intent.ACTION_VIEW, uri.toUri()).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             if (packageName != null) {
@@ -218,56 +186,6 @@ class ChooserActivity : ComponentActivity() {
         } catch (e: PackageManager.NameNotFoundException) {
             false
         }
-    }
-
-    private fun extractCoordinates(url: String): String? {
-        val decodedUrl = Uri.decode(url)
-        val preciseLatRegex = Regex("!3d([-+]?\\d+\\.\\d+)")
-        val preciseLonRegex = Regex("!4d([-+]?\\d+\\.\\d+)")
-        val latMatch = preciseLatRegex.find(decodedUrl)
-        val lonMatch = preciseLonRegex.find(decodedUrl)
-        if (latMatch != null && lonMatch != null) {
-            return "${latMatch.groupValues[1]},${lonMatch.groupValues[1]}"
-        }
-        val queryRegex = Regex("query=([-+]?\\d+\\.\\d+),([-+]?\\d+\\.\\d+)")
-        val queryMatch = queryRegex.find(decodedUrl)
-        if (queryMatch != null) {
-            return "${queryMatch.groupValues[1]},${queryMatch.groupValues[2]}"
-        }
-        if (!url.contains("google.") && !url.contains("goo.gl")) {
-            val coordRegex = Regex("([-+]?\\d+\\.\\d+)\\s*,\\s*([-+]?\\d+\\.\\d+)")
-            val match = coordRegex.find(decodedUrl)
-            if (match != null) {
-                return "${match.groupValues[1]},${match.groupValues[2]}"
-            }
-        }
-        return null
-    }
-
-    private fun extractPlaceNameFromUrl(url: String): String? {
-        val decodedUrl = Uri.decode(url)
-        val placeRegex = Regex("/maps/place/([^/]+)")
-        val match = placeRegex.find(decodedUrl)
-        return match?.groupValues?.get(1)?.replace('+', ' ')
-    }
-
-    private fun parseDmsToDecimal(degrees: String, minutes: String, seconds: String, direction: String): Double {
-        var decimal = degrees.toDouble() + (minutes.toDouble() / 60.0) + (seconds.toDouble() / 3600.0)
-        if (direction == "S" || direction == "W") decimal *= -1.0
-        return decimal
-    }
-
-    private fun extractCoordinatesFromTitle(title: String): String? {
-        val dmsRegex = Regex("(\\d+)°(\\d+)'([\\d.]+)\"([NS])\\s+(\\d+)°(\\d+)'([\\d.]+)\"([EW])")
-        val match = dmsRegex.find(title)
-        if (match != null) {
-            try {
-                val lat = parseDmsToDecimal(match.groupValues[1], match.groupValues[2], match.groupValues[3], match.groupValues[4])
-                val lon = parseDmsToDecimal(match.groupValues[5], match.groupValues[6], match.groupValues[7], match.groupValues[8])
-                return "$lat,$lon"
-            } catch (_: Exception) {}
-        }
-        return null
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -371,7 +289,9 @@ class ChooserActivity : ComponentActivity() {
                                     contentColor = if (preferredApp == ReceiverRepository.APP_MAPS) highlightContent else normalContent,
                                     onClick = { 
                                         isAutoOpenEnabled = false
-                                        onOptionSelected("com.google.android.apps.maps", url) 
+                                        val coords = MapsUtils.extractCoordinates(url)
+                                        val targetUri = if (coords != null) "geo:$coords?q=$coords" else url
+                                        onOptionSelected("com.google.android.apps.maps", targetUri) 
                                     }
                                 )
                             }
@@ -384,20 +304,7 @@ class ChooserActivity : ComponentActivity() {
                                     contentColor = if (preferredApp == ReceiverRepository.APP_WAZE) highlightContent else normalContent,
                                     onClick = { 
                                         isAutoOpenEnabled = false
-                                        val coords = extractCoordinates(url) ?: extractCoordinatesFromTitle(title)
-                                        val placeName = extractPlaceNameFromUrl(url) ?: title.ifBlank { null }
-
-                                        val targetUri = if (coords != null) {
-                                            if (placeName != null) {
-                                                "geo:$coords?q=$coords(${Uri.encode(placeName)})"
-                                            } else {
-                                                "geo:$coords?q=$coords"
-                                            }
-                                        } else if (isMapsLink) {
-                                            "geo:0,0?q=${Uri.encode(url)}"
-                                        } else {
-                                            url
-                                        }
+                                        val targetUri = MapsUtils.getWazeUri(url, title)
                                         onOptionSelected("com.waze", targetUri)
                                     }
                                 )
@@ -410,11 +317,7 @@ class ChooserActivity : ComponentActivity() {
                                 contentColor = if (preferredApp == ReceiverRepository.APP_OTHER) highlightContent else normalContent,
                                 onClick = { 
                                     isAutoOpenEnabled = false
-                                    val targetUri = if (isMapsLink && !url.startsWith("geo:")) {
-                                        "geo:0,0?q=${Uri.encode(url)}"
-                                    } else {
-                                        url
-                                    }
+                                    val targetUri = MapsUtils.getGenericMapsUri(url)
                                     onOptionSelected(null, targetUri) 
                                 }
                             )

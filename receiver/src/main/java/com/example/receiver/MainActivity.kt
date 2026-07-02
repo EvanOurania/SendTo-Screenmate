@@ -191,14 +191,14 @@ fun HistoryScreen(navigationPadding: PaddingValues) {
                             
                             if (isLocation) {
                                 val intent = Intent(context, ChooserActivity::class.java).apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                                     putExtra("url", item.url) 
                                     putExtra("title", item.title) // THE FIX: Pass the title to detect pins
                                 }
                                 context.startActivity(intent)
                             } else {
                                 val intent = Intent(Intent.ACTION_VIEW, item.url.toUri()).apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                                 }
                                 try {
                                     context.startActivity(intent)

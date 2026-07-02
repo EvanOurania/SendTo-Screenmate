@@ -11,8 +11,8 @@ android {
         applicationId = "com.example.sendtoscreenmate"
         minSdk = 24
         targetSdk = 37
-        versionCode = 105
-        versionName = "1.1.108"
+        versionCode = 111
+        versionName = "1.1.114"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -53,6 +53,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.material.icons.extended)

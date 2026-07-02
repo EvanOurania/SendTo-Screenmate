@@ -1,13 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Theme for Splash Screen (Official Android API) -->
+    <style name="Theme.SendToScreenMate.Starting" parent="Theme.SplashScreen">
+        <!-- Set splash background to a dark color to avoid white flash -->
+        <item name="windowSplashScreenBackground">@android:color/black</item>
+        <item name="windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+        <item name="postSplashScreenTheme">@style/Theme.SendToScreenMate</item>
+    </style>
+
+    <!-- Main theme for Settings screen -->
     <style name="Theme.SendToScreenMate" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowIsTranslucent">false</item>
         <item name="android:windowIsFloating">false</item>
         <item name="android:windowBackground">@android:color/white</item>
+        <!-- Prevent white flash on Android 12+ -->
+        <item name="android:windowSplashScreenBackground" tools:targetApi="31">@android:color/white</item>
     </style>
 
+    <!-- Transparent theme for Quick Send popup -->
     <style name="Theme.SendToScreenMate.Transparent" parent="Theme.SendToScreenMate">
+        <!-- Fix for Android 12+ blinding white splash screen.
+             Setting it to black or transparent avoids the flash before the popup appears. -->
+        <item name="android:windowSplashScreenBackground" tools:targetApi="31">@android:color/black</item>
+
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:colorBackground">@android:color/transparent</item>
         <item name="android:windowIsTranslucent">true</item>

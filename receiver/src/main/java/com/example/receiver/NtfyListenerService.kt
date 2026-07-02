@@ -88,7 +88,7 @@ class NtfyListenerService : Service() {
             // Initialize lastReceivedUrl from history for the "Reopen" button
             if (lastReceivedUrl == null) {
                 historyRepo.historyItems.first().firstOrNull()?.let {
-                    lastReceivedUrl = formatTargetUrl(it.url)
+                    lastReceivedUrl = MapsUtils.getGenericMapsUri(it.url)
                     lastReceivedTitle = it.title
                 }
             }
@@ -193,7 +193,7 @@ class NtfyListenerService : Service() {
                 // --- IMPROVED HISTORY TITLE EXTRACTION ---
                 // If title is blank or generic, try to extract it from the URL
                 val refinedTitle = if (displayTitle.isBlank() || displayTitle.lowercase() == "location") {
-                    val extracted = extractPlaceNameFromUrl(targetUrl)
+                    val extracted = MapsUtils.extractPlaceName(targetUrl)
                     extracted ?: displayTitle
                 } else {
                     displayTitle
@@ -220,7 +220,7 @@ class NtfyListenerService : Service() {
                     targetUrl
                 }
 
-                val finalUrl = formatTargetUrl(targetUrl)
+                val finalUrl = MapsUtils.getGenericMapsUri(targetUrl)
 
                 // If it's a URL/Location, we process it normally.
                 // If it's plain text, we still process it if auto-copy is enabled.
@@ -256,19 +256,11 @@ class NtfyListenerService : Service() {
                             }
 
                             // Build the final URI for direct launch
-                            val coords = extractCoordinates(rawMapsUrl)
                             val targetUri = if (preferredApp == ReceiverRepository.APP_WAZE) {
-                                if (coords != null) {
-                                    "waze://?ll=$coords&navigate=yes"
-                                } else {
-                                    "waze://?q=${Uri.encode(rawMapsUrl)}&navigate=yes"
-                                }
+                                MapsUtils.getWazeUri(rawMapsUrl, displayTitle)
                             } else if (preferredApp == ReceiverRepository.APP_MAPS) {
-                                if (coords != null) {
-                                    "geo:$coords?q=$coords"
-                                } else {
-                                    rawMapsUrl
-                                }
+                                val coords = MapsUtils.extractCoordinates(rawMapsUrl)
+                                if (coords != null) "geo:$coords?q=$coords" else rawMapsUrl
                             } else {
                                 finalUrl
                             }
@@ -316,64 +308,6 @@ class NtfyListenerService : Service() {
         } catch (_: Exception) {
             // Ignore parse errors
         }
-    }
-
-    private fun formatTargetUrl(targetUrl: String): String {
-        // Detect raw Google Maps links (e.g. from "Send as Location" or "Send Text/Link")
-        val isGoogleMaps = MapsUtils.isGoogleMapsLink(targetUrl)
-
-        return if (targetUrl.startsWith("http") || targetUrl.startsWith("geo:") || isGoogleMaps) {
-            if (isGoogleMaps && !targetUrl.startsWith("geo:") && !targetUrl.startsWith("http")) {
-                "geo:0,0?q=${Uri.encode(targetUrl)}"
-            } else {
-                targetUrl
-            }
-        } else {
-            ""
-        }
-    }
-
-    private fun extractPlaceNameFromUrl(url: String): String? {
-        val decodedUrl = Uri.decode(url)
-        val placeRegex = Regex("/maps/place/([^/]+)")
-        val match = placeRegex.find(decodedUrl)
-        return match?.groupValues?.get(1)?.replace('+', ' ')
-    }
-
-    private fun extractCoordinates(url: String): String? {
-        val decodedUrl = Uri.decode(url)
-        val preciseLatRegex = Regex("!3d([-+]?\\d+\\.\\d+)")
-        val preciseLonRegex = Regex("!4d([-+]?\\d+\\.\\d+)")
-        val latMatch = preciseLatRegex.find(decodedUrl)
-        val lonMatch = preciseLonRegex.find(decodedUrl)
-        if (latMatch != null && lonMatch != null) {
-            return "${latMatch.groupValues[1]},${lonMatch.groupValues[1]}"
-        }
-        val queryRegex = Regex("query=([-+]?\\d+\\.\\d+),([-+]?\\d+\\.\\d+)")
-        val queryMatch = queryRegex.find(decodedUrl)
-        if (queryMatch != null) {
-            return "${queryMatch.groupValues[1]},${queryMatch.groupValues[2]}"
-        }
-        if (!url.contains("google.") && !url.contains("goo.gl")) {
-            val coordRegex = Regex("([-+]?\\d+\\.\\d+)\\s*,\\s*([-+]?\\d+\\.\\d+)")
-            val match = coordRegex.find(decodedUrl)
-            if (match != null) {
-                return "${match.groupValues[1]},${match.groupValues[2]}"
-            }
-        }
-        return null
-    }
-
-    private fun copyToClipboard(text: String) {
-        try {
-            val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = ClipData.newPlainText("received text", text)
-            clipboard.setPrimaryClip(clip)
-            
-            CoroutineScope(Dispatchers.Main).launch {
-                Toast.makeText(applicationContext, R.string.text_copied_toast, Toast.LENGTH_SHORT).show()
-            }
-        } catch (_: Exception) {}
     }
 
     private fun openUrl(url: String) {

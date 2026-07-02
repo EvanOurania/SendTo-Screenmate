@@ -10,8 +10,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -33,7 +33,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -91,65 +90,19 @@ class MainActivity : ComponentActivity() {
     private lateinit var repository: WebhookRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        val action = intent?.action
-        
-        // Android 10 check: broader detection for sharing apps like Brave
-        // We consider it a "Quick Send" if it's NOT a standard launcher launch
-        val isLauncher = action == Intent.ACTION_MAIN && intent?.hasCategory(Intent.CATEGORY_LAUNCHER) == true
-        val hasContent = intent?.hasExtra(Intent.EXTRA_TEXT) == true || intent?.data != null
-        
-        val isShareOrView = !isLauncher && (action != null || hasContent)
+        installSplashScreen()
+        setTheme(R.style.Theme_SendToScreenMate)
+        enableEdgeToEdge()
+        super.onCreate(savedInstanceState)
+        repository = WebhookRepository(this)
 
-        if (isShareOrView) {
-            setTheme(R.style.Theme_SendToScreenMate_Transparent)
-            window.setBackgroundDrawableResource(android.R.color.transparent)
-            super.onCreate(savedInstanceState)
-            
-            repository = WebhookRepository(this)
-
-            setContent {
-                SendToScreenMateTheme {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            tonalElevation = 8.dp,
-                            modifier = Modifier.size(120.dp),
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center,
-                                modifier = Modifier.padding(16.dp),
-                            ) {
-                                CircularProgressIndicator(modifier = Modifier.size(48.dp))
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = stringResource(R.string.sending_progress),
-                                    style = MaterialTheme.typography.labelMedium,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-            handleIncomingData(intent)
-        } else {
-            setTheme(R.style.Theme_SendToScreenMate)
-            enableEdgeToEdge()
-            super.onCreate(savedInstanceState)
-            repository = WebhookRepository(this)
-
-            setContent {
-                SendToScreenMateTheme {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background,
-                    ) {
-                        MainScreen(repository)
-                    }
+        setContent {
+            SendToScreenMateTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background,
+                ) {
+                    MainScreen(repository)
                 }
             }
         }
@@ -158,239 +111,8 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (isShareOrViewIntent()) {
-            handleIncomingData(intent)
-        }
     }
 
-    private fun handleIncomingData(intent: Intent) {
-        val fullText = intent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
-        val subject = intent.getStringExtra(Intent.EXTRA_SUBJECT) ?: ""
-        val dataString = intent.dataString ?: ""
-        
-        var url = extractUrl(fullText)
-        
-        // If we don't find a URL in the text, check if the intent has a geo: data scheme
-        if (url.isBlank() && dataString.startsWith("geo:")) {
-            url = dataString
-        }
-        
-        var title = ""
-        
-        if (intent.action == Intent.ACTION_SEND) {
-            // Priority to Subject
-            if (subject.isNotBlank()) {
-                title = subject.trim()
-            } else if (url.isNotBlank()) {
-                // Extract what precedes the URL
-                val textBeforeUrl = fullText.substringBefore(url).trim()
-                if (textBeforeUrl.isNotBlank()) {
-                    // Add " - " to delimiters for apps like Electra
-                    title = textBeforeUrl.split("\n", "·", " - ").first().trim()
-                }
-            }
-            
-            // If title is still blank and it's a geo link, look for the label
-            if (title.isBlank() && url.startsWith("geo:")) {
-                title = extractGeoLabel(url)
-            }
-        } else if (intent.action == Intent.ACTION_VIEW || intent.action == "android.intent.action.NAVIGATE") {
-            // For direct geo: links
-            title = extractGeoLabel(dataString).ifBlank { "Position" }
-            if (url.isBlank()) url = dataString
-        }
-
-        if (url.isNotBlank()) {
-            val geoLabel = if (url.startsWith("geo:")) extractGeoLabel(url) else ""
-            performSendData(url, title.ifBlank { geoLabel.ifBlank { "Location" } })
-        } else if (fullText.isNotBlank()) {
-            performSendData(fullText, title.ifBlank { "Text Message" })
-        } else {
-            Toast.makeText(this, getString(R.string.no_data_error), Toast.LENGTH_SHORT).show()
-            finish()
-        }
-    }
-
-    private fun performSendData(data: String, title: String) {
-        // Prepare a JSON payload so we can include the title
-        val json = JSONObject().apply {
-            put("url", data)
-            put("title", title)
-        }
-        val finalPayload = json.toString()
-
-        if (finalPayload.length > 3000) {
-            Toast.makeText(this, R.string.char_limit_exceeded, Toast.LENGTH_LONG).show()
-            return
-        }
-        
-        lifecycleScope.launch {
-            val serviceType = repository.serviceType.first()
-            if (serviceType == WebhookRepository.SERVICE_MACRODROID) {
-                val url = repository.webhookUrl.first()
-                sendToMacroDroid(url, data) // MacroDroid still expects just the URL/Value
-            } else {
-                val server = repository.ntfyServer.first()
-                val topic = repository.ntfyTopic.first()
-                val secretKey = repository.secretKey.first()
-                val encryptionActive = repository.encryptionEnabled.first()
-                sendToNtfy(server, topic, secretKey, encryptionActive, finalPayload)
-            }
-        }
-    }
-
-    private fun extractUrl(text: String): String {
-        // If the text is already just a geo: URI, take it all
-        if (text.trim().startsWith("geo:", ignoreCase = true)) return text.trim()
-        
-        // Permissive regex to capture the entire link even with special characters
-        // We include [^\\s] to grab everything until the first whitespace
-        val urlRegex = Regex("((https?://|geo:)[^\\s\\n\\r]+)")
-        val match = urlRegex.find(text)
-        return match?.value ?: ""
-    }
-
-    private fun extractGeoLabel(geoUri: String): String {
-        try {
-            // 1. Search for q= parameter (common for text addresses)
-            val qIndex = geoUri.indexOf("q=")
-            if (qIndex != -1) {
-                var value = geoUri.substring(qIndex + 2)
-                
-                // Stop at common delimiters
-                val endDelimiters = charArrayOf('&', '@', '#')
-                var firstDelimiter = -1
-                for (d in endDelimiters) {
-                    val idx = value.indexOf(d)
-                    if (idx != -1 && (firstDelimiter == -1 || idx < firstDelimiter)) {
-                        firstDelimiter = idx
-                    }
-                }
-                
-                if (firstDelimiter != -1) {
-                    value = value.substring(0, firstDelimiter)
-                }
-                
-                // Decode (handles %20, +, etc)
-                val decoded = try {
-                    URLDecoder.decode(value, StandardCharsets.UTF_8.name()).trim()
-                } catch (_: Exception) {
-                    value.replace("%20", " ").replace("+", " ").trim()
-                }
-
-                // If result contains parentheses, extract only the content (the label)
-                // This cleans cases like "45.123,9.123(Place Name)"
-                val labelMatch = Regex("\\((.+)\\)").find(decoded)
-                if (labelMatch != null) {
-                    return labelMatch.groupValues[1].trim()
-                }
-                
-                return decoded
-            }
-
-            // 2. Fallback: search for label in parentheses (standard geo: format)
-            val labelRegex = Regex("\\(([^)]+)\\)")
-            val labelMatch = labelRegex.find(geoUri)
-            if (labelMatch != null) {
-                val value = labelMatch.groupValues[1]
-                return try {
-                    URLDecoder.decode(value, StandardCharsets.UTF_8.name()).trim()
-                } catch (_: Exception) {
-                    value.trim()
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return ""
-    }
-
-    private fun sendToMacroDroid(webhookUrl: String, text: String) {
-        lifecycleScope.launch {
-            val success = withContext(Dispatchers.IO) {
-                try {
-                    val client = OkHttpClient()
-                    val url = webhookUrl.toHttpUrlOrNull()
-                        ?.newBuilder()
-                        ?.addQueryParameter("value", text)
-                        ?.build()
-
-                    if (url != null) {
-                        val request = Request.Builder()
-                            .url(url)
-                            .get()
-                            .build()
-
-                        client.newCall(request).execute().use { response ->
-                            response.isSuccessful
-                        }
-                    } else {
-                        false
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    false
-                }
-            }
-
-            if (success) {
-                Toast.makeText(this@MainActivity, R.string.sent_ntfy, Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this@MainActivity, R.string.error_ntfy, Toast.LENGTH_SHORT).show()
-            }
-            if (isShareOrViewIntent()) {
-                finish()
-            }
-        }
-    }
-
-    private fun sendToNtfy(server: String, topic: String, secretKey: String, encryptionEnabled: Boolean, payload: String) {
-        lifecycleScope.launch {
-            val success = withContext(Dispatchers.IO) {
-                try {
-                    val client = OkHttpClient()
-                    val baseUrl = if (server.endsWith("/")) server else "$server/"
-                    val finalUrl = "$baseUrl$topic"
-                    
-                    val encryptedPayload = if (encryptionEnabled && secretKey.isNotBlank()) {
-                        CryptoManager.encrypt(payload, secretKey)
-                    } else {
-                        payload
-                    }
-                    
-                    val request = Request.Builder()
-                        .url(finalUrl)
-                        .post(encryptedPayload.toRequestBody("text/plain".toMediaType()))
-                        .build()
-
-                    client.newCall(request).execute().use { response ->
-                        response.isSuccessful
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    false
-                }
-            }
-
-            if (success) {
-                Toast.makeText(this@MainActivity, R.string.sent_ntfy, Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this@MainActivity, R.string.error_ntfy, Toast.LENGTH_SHORT).show()
-            }
-            if (isShareOrViewIntent()) {
-                finish()
-            }
-        }
-    }
-
-    private fun isShareOrViewIntent(): Boolean {
-        val action = intent?.action
-        val isLauncher = action == Intent.ACTION_MAIN && intent?.hasCategory(Intent.CATEGORY_LAUNCHER) == true
-        val hasContent = intent?.hasExtra(Intent.EXTRA_TEXT) == true || intent?.data != null
-        return !isLauncher && (action != null || hasContent)
-    }
-
-    // Composable internal logic exposed for Screens
     fun triggerManualSend(data: String) {
         val url = extractUrl(data)
         var title = ""
@@ -406,12 +128,7 @@ class MainActivity : ComponentActivity() {
                 title = extractGeoLabel(url)
             }
             if (title.isBlank()) {
-                // THE FIX: Distinguish between location links and generic URLs
-                title = if (MapsUtils.isGoogleMapsLink(url) || url.startsWith("geo:")) {
-                    "Location"
-                } else {
-                    "Link"
-                }
+                title = if (MapsUtils.isGoogleMapsLink(url) || url.startsWith("geo:")) "Location" else "Link"
             }
         } else {
             title = "Text Message"
@@ -424,12 +141,111 @@ class MainActivity : ComponentActivity() {
         val isGeo = data.trim().startsWith("geo:", ignoreCase = true)
         
         if (isMapsLink || isGeo) {
-            // It's already a Maps link or a geo URI, send it normally to avoid double wrapping
             triggerManualSend(data)
         } else {
-            // It's a text address, wrap it in a geo URI format
             val geoUri = "geo:0,0?q=${Uri.encode(data)}"
-            performSendData(geoUri, data.take(50)) // Use part of address as title
+            performSendData(geoUri, data.take(50))
+        }
+    }
+
+    private fun performSendData(data: String, title: String) {
+        val json = JSONObject().apply {
+            put("url", data)
+            put("title", title)
+        }
+        val finalPayload = json.toString()
+        if (finalPayload.length > 3000) {
+            Toast.makeText(this, R.string.char_limit_exceeded, Toast.LENGTH_LONG).show()
+            return
+        }
+        lifecycleScope.launch {
+            val serviceType = repository.serviceType.first()
+            if (serviceType == WebhookRepository.SERVICE_MACRODROID) {
+                val webhookUrl = repository.webhookUrl.first()
+                sendToMacroDroid(webhookUrl, data)
+            } else {
+                val server = repository.ntfyServer.first()
+                val topic = repository.ntfyTopic.first()
+                val secretKey = repository.secretKey.first()
+                val encryptionActive = repository.encryptionEnabled.first()
+                sendToNtfy(server, topic, secretKey, encryptionActive, finalPayload)
+            }
+        }
+    }
+
+    private fun extractUrl(text: String): String {
+        if (text.trim().startsWith("geo:", ignoreCase = true)) return text.trim()
+        val urlRegex = Regex("((https?://|geo:)[^\\s\\n\\r]+)")
+        val match = urlRegex.find(text)
+        return match?.value ?: ""
+    }
+
+    private fun extractGeoLabel(geoUri: String): String {
+        try {
+            val qIndex = geoUri.indexOf("q=")
+            if (qIndex != -1) {
+                var value = geoUri.substring(qIndex + 2)
+                val endDelimiters = charArrayOf('&', '@', '#')
+                var firstDelimiter = -1
+                for (d in endDelimiters) {
+                    val idx = value.indexOf(d)
+                    if (idx != -1 && (firstDelimiter == -1 || idx < firstDelimiter)) firstDelimiter = idx
+                }
+                if (firstDelimiter != -1) value = value.substring(0, firstDelimiter)
+                val decoded = try {
+                    URLDecoder.decode(value, StandardCharsets.UTF_8.name()).trim()
+                } catch (_: Exception) {
+                    value.replace("%20", " ").replace("+", " ").trim()
+                }
+                val labelMatch = Regex("\\((.+)\\)").find(decoded)
+                if (labelMatch != null) return labelMatch.groupValues[1].trim()
+                return decoded
+            }
+            val labelRegex = Regex("\\(([^)]+)\\)")
+            val labelMatch = labelRegex.find(geoUri)
+            if (labelMatch != null) {
+                val value = labelMatch.groupValues[1]
+                return try {
+                    URLDecoder.decode(value, StandardCharsets.UTF_8.name()).trim()
+                } catch (_: Exception) {
+                    value.trim()
+                }
+            }
+        } catch (_: Exception) {}
+        return ""
+    }
+
+    private fun sendToMacroDroid(webhookUrl: String, text: String) {
+        lifecycleScope.launch {
+            val success = withContext(Dispatchers.IO) {
+                try {
+                    val client = OkHttpClient()
+                    val url = webhookUrl.toHttpUrlOrNull()?.newBuilder()?.addQueryParameter("value", text)?.build()
+                    if (url != null) {
+                        val request = Request.Builder().url(url).get().build()
+                        client.newCall(request).execute().use { it.isSuccessful }
+                    } else false
+                } catch (_: Exception) { false }
+            }
+            if (success) Toast.makeText(this@MainActivity, R.string.sent_ntfy, Toast.LENGTH_SHORT).show()
+            else Toast.makeText(this@MainActivity, R.string.error_ntfy, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun sendToNtfy(server: String, topic: String, secretKey: String, encryptionEnabled: Boolean, payload: String) {
+        lifecycleScope.launch {
+            val success = withContext(Dispatchers.IO) {
+                try {
+                    val client = OkHttpClient()
+                    val baseUrl = if (server.endsWith("/")) server else "$server/"
+                    val finalUrl = "$baseUrl$topic"
+                    val encryptedPayload = if (encryptionEnabled && secretKey.isNotBlank()) CryptoManager.encrypt(payload, secretKey) else payload
+                    val request = Request.Builder().url(finalUrl).post(encryptedPayload.toRequestBody("text/plain".toMediaType())).build()
+                    client.newCall(request).execute().use { it.isSuccessful }
+                } catch (_: Exception) { false }
+            }
+            if (success) Toast.makeText(this@MainActivity, R.string.sent_ntfy, Toast.LENGTH_SHORT).show()
+            else Toast.makeText(this@MainActivity, R.string.error_ntfy, Toast.LENGTH_SHORT).show()
         }
     }
 }
