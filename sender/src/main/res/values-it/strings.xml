@@ -36,7 +36,8 @@
     <string name="manual_send_label">Invio Manuale</string>
     <string name="manual_send_hint">Incolla link o testo qui</string>
     <string name="char_limit_exceeded">Testo troppo lungo (max 3000 car.)</string>
-    <string name="btn_send">Invia a ScreenMate</string>
+    <string name="btn_send">Invia Testo/Link</string>
+    <string name="btn_send_location">Invia Indirizzo</string>
     <string name="scan_qr">Scansiona QR Ricevitore</string>
     <string name="section_input">Input</string>
     <string name="section_service">Servizio</string>

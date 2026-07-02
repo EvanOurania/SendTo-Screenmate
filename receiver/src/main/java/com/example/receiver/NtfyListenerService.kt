@@ -36,6 +36,7 @@ class NtfyListenerService : Service() {
     private var listeningJob: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var lastReceivedUrl: String? = null
+    private var lastReceivedTitle: String? = null
     private var lastMessageTime: Long = 0
 
     private val client = OkHttpClient.Builder()
@@ -88,6 +89,7 @@ class NtfyListenerService : Service() {
             if (lastReceivedUrl == null) {
                 historyRepo.historyItems.first().firstOrNull()?.let {
                     lastReceivedUrl = formatTargetUrl(it.url)
+                    lastReceivedTitle = it.title
                 }
             }
 
@@ -185,21 +187,130 @@ class NtfyListenerService : Service() {
 
                 if (targetUrl.isBlank()) return
 
-                if (copyToClipboard) {
-                    copyToClipboard(targetUrl)
+                // Note: Background clipboard access is restricted on Android 10+.
+                // We now handle auto-copy inside ChooserActivity which is a foreground activity.
+
+                // --- IMPROVED HISTORY TITLE EXTRACTION ---
+                // If title is blank or generic, try to extract it from the URL
+                val refinedTitle = if (displayTitle.isBlank() || displayTitle.lowercase() == "location") {
+                    val extracted = extractPlaceNameFromUrl(targetUrl)
+                    extracted ?: displayTitle
+                } else {
+                    displayTitle
                 }
 
                 // Add to history
                 serviceScope.launch {
                     val historyRepo = HistoryRepository(this@NtfyListenerService)
-                    historyRepo.addHistoryItem(displayTitle, targetUrl)
+                    historyRepo.addHistoryItem(refinedTitle, targetUrl, time)
+                }
+
+                // --- CRITICAL FIX 1 & 4: Detection & Correct URL passing ---
+                // Detect if there's a Google Maps link ANYWHERE in the DECRYPTED message
+                val isMapsLink = MapsUtils.isGoogleMapsLink(decryptedMessage)
+                
+                // Extract the cleanest possible URL for the Chooser
+                val rawMapsUrl = if (targetUrl.contains("http")) {
+                    targetUrl 
+                } else if (decryptedMessage.contains("http")) {
+                    // Extract link from text if it's not the primary URL field
+                    val match = Regex("https?://[^\\s\\n\\r]+").find(decryptedMessage)
+                    match?.value ?: targetUrl
+                } else {
+                    targetUrl
                 }
 
                 val finalUrl = formatTargetUrl(targetUrl)
-                if (finalUrl.isNotBlank()) {
-                    lastReceivedUrl = finalUrl
-                    updateNotification(getString(R.string.notification_title)) 
-                    openUrl(finalUrl)
+
+                // If it's a URL/Location, we process it normally.
+                // If it's plain text, we still process it if auto-copy is enabled.
+                if (finalUrl.isNotBlank() || decryptedMessage.isNotBlank()) {
+                    if (finalUrl.isNotBlank()) {
+                        lastReceivedUrl = finalUrl
+                        lastReceivedTitle = refinedTitle
+                        updateNotification(getString(R.string.notification_title))
+                    }
+                    
+                    serviceScope.launch {
+                        val repository = ReceiverRepository(this@NtfyListenerService)
+                        val autoCopyEnabled = repository.copyToClipboard.first()
+                        val autoDelay = repository.autoOpenDelay.first()
+                        val preferredApp = if (isMapsLink) {
+                            repository.autoOpenMapsApp.first()
+                        } else {
+                            repository.autoOpenGeoApp.first()
+                        }
+
+                        // THE SPLIT-SCREEN SAVER: If delay is 0, launch directly from Service.
+                        // This bypasses ChooserActivity task manipulation and keeps split-screen intact.
+                        if (autoDelay == 0 && preferredApp != ReceiverRepository.APP_NONE && finalUrl.isNotBlank()) {
+                            // Still handle auto-copy if enabled
+                            if (autoCopyEnabled) {
+                                val intent = Intent(this@NtfyListenerService, ChooserActivity::class.java).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                    val textToCopy = if (targetUrl.isNotBlank()) targetUrl else decryptedMessage
+                                    putExtra("url", textToCopy)
+                                    putExtra("mode", "COPY_ONLY")
+                                }
+                                startActivity(intent)
+                            }
+
+                            // Build the final URI for direct launch
+                            val coords = extractCoordinates(rawMapsUrl)
+                            val targetUri = if (preferredApp == ReceiverRepository.APP_WAZE) {
+                                if (coords != null) {
+                                    "waze://?ll=$coords&navigate=yes"
+                                } else {
+                                    "waze://?q=${Uri.encode(rawMapsUrl)}&navigate=yes"
+                                }
+                            } else if (preferredApp == ReceiverRepository.APP_MAPS) {
+                                if (coords != null) {
+                                    "geo:$coords?q=$coords"
+                                } else {
+                                    rawMapsUrl
+                                }
+                            } else {
+                                finalUrl
+                            }
+
+                            val directIntent = Intent(Intent.ACTION_VIEW, targetUri.toUri()).apply {
+                                // MINIMAL FLAGS: NEW_TASK is required from service, SINGLE_TOP preserves the split-screen activity
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                            }
+                            try {
+                                startActivity(directIntent)
+                            } catch (_: Exception) {}
+                            return@launch
+                        }
+
+                        if (finalUrl.isNotBlank() && (isMapsLink || finalUrl.startsWith("geo:"))) {
+                            // For locations with delay, use ChooserActivity
+                            val intent = Intent(this@NtfyListenerService, ChooserActivity::class.java).apply {
+                                // Minimalist flags are safer for split-screen
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                putExtra("url", rawMapsUrl) 
+                                putExtra("title", displayTitle)
+                            }
+                            startActivity(intent)
+                        } else if (autoCopyEnabled) {
+                            // For generic text/links, trigger ChooserActivity for background copy bypass
+                            val intent = Intent(this@NtfyListenerService, ChooserActivity::class.java).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                val textToCopy = if (targetUrl.isNotBlank()) targetUrl else decryptedMessage
+                                putExtra("url", textToCopy)
+                                
+                                if (finalUrl.isBlank()) {
+                                    putExtra("mode", "COPY_ONLY")
+                                } else {
+                                    putExtra("mode", "COPY_AND_OPEN_DIRECT")
+                                }
+                            }
+                            startActivity(intent)
+                        } else if (finalUrl.isNotBlank()) {
+                            // No copy, but we have a valid URL: just open it normally
+                            openUrl(finalUrl)
+                        }
+                    }
                 }
             }
         } catch (_: Exception) {
@@ -208,11 +319,11 @@ class NtfyListenerService : Service() {
     }
 
     private fun formatTargetUrl(targetUrl: String): String {
-        val isAddress = targetUrl.contains(Regex("\\b\\d{5}\\b")) || 
-                       listOf("via", "piazza", "corso", "viale", "largo", "vicolo", "strada", "piazzale").any { targetUrl.contains(it, ignoreCase = true) }
+        // Detect raw Google Maps links (e.g. from "Send as Location" or "Send Text/Link")
+        val isGoogleMaps = MapsUtils.isGoogleMapsLink(targetUrl)
 
-        return if (targetUrl.startsWith("http") || targetUrl.startsWith("geo:") || isAddress) {
-            if (isAddress && !targetUrl.startsWith("geo:") && !targetUrl.startsWith("http")) {
+        return if (targetUrl.startsWith("http") || targetUrl.startsWith("geo:") || isGoogleMaps) {
+            if (isGoogleMaps && !targetUrl.startsWith("geo:") && !targetUrl.startsWith("http")) {
                 "geo:0,0?q=${Uri.encode(targetUrl)}"
             } else {
                 targetUrl
@@ -220,6 +331,37 @@ class NtfyListenerService : Service() {
         } else {
             ""
         }
+    }
+
+    private fun extractPlaceNameFromUrl(url: String): String? {
+        val decodedUrl = Uri.decode(url)
+        val placeRegex = Regex("/maps/place/([^/]+)")
+        val match = placeRegex.find(decodedUrl)
+        return match?.groupValues?.get(1)?.replace('+', ' ')
+    }
+
+    private fun extractCoordinates(url: String): String? {
+        val decodedUrl = Uri.decode(url)
+        val preciseLatRegex = Regex("!3d([-+]?\\d+\\.\\d+)")
+        val preciseLonRegex = Regex("!4d([-+]?\\d+\\.\\d+)")
+        val latMatch = preciseLatRegex.find(decodedUrl)
+        val lonMatch = preciseLonRegex.find(decodedUrl)
+        if (latMatch != null && lonMatch != null) {
+            return "${latMatch.groupValues[1]},${lonMatch.groupValues[1]}"
+        }
+        val queryRegex = Regex("query=([-+]?\\d+\\.\\d+),([-+]?\\d+\\.\\d+)")
+        val queryMatch = queryRegex.find(decodedUrl)
+        if (queryMatch != null) {
+            return "${queryMatch.groupValues[1]},${queryMatch.groupValues[2]}"
+        }
+        if (!url.contains("google.") && !url.contains("goo.gl")) {
+            val coordRegex = Regex("([-+]?\\d+\\.\\d+)\\s*,\\s*([-+]?\\d+\\.\\d+)")
+            val match = coordRegex.find(decodedUrl)
+            if (match != null) {
+                return "${match.groupValues[1]},${match.groupValues[2]}"
+            }
+        }
+        return null
     }
 
     private fun copyToClipboard(text: String) {
@@ -235,13 +377,26 @@ class NtfyListenerService : Service() {
     }
 
     private fun openUrl(url: String) {
-        val intent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        try {
+        // If it's a location or Maps link, use our custom chooser
+        val isMaps = MapsUtils.isGoogleMapsLink(url)
+        val isGeo = url.startsWith("geo:")
+
+        if (isMaps || isGeo) {
+            val intent = Intent(this, ChooserActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                putExtra("url", url)
+                // We don't have a title here for notification reopens, so we'll pass an empty string
+                putExtra("title", "")
+            }
             startActivity(intent)
-        } catch (_: Exception) {
-            // Ignore errors
+        } else {
+            // Direct browser opening for standard links
+            val intent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+            try {
+                startActivity(intent)
+            } catch (_: Exception) {}
         }
     }
 
@@ -270,19 +425,38 @@ class NtfyListenerService : Service() {
             this, 0, mainIntent, PendingIntent.FLAG_IMMUTABLE
         )
 
+        // THE FIX: Title is now static "In ascolto", Content shows the last link name
+        val notificationTitle = getString(R.string.notification_title)
+        val notificationContent = if (!lastReceivedTitle.isNullOrBlank()) {
+            lastReceivedTitle!!
+        } else {
+            getString(R.string.notification_active)
+        }
+
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.notification_title))
-            .setContentText(content)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(notificationTitle)
+            .setContentText(notificationContent)
+            .setSmallIcon(R.drawable.ic_notification) // THE FIX: Monochrome icon for modern Android
             .setContentIntent(mainPendingIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.btn_stop), stopPendingIntent)
 
         lastReceivedUrl?.let { url ->
-            val reopenIntent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val isMaps = MapsUtils.isGoogleMapsLink(url)
+            val isGeo = url.startsWith("geo:")
+            
+            val reopenIntent = if (isMaps || isGeo) {
+                Intent(this, ChooserActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    putExtra("url", url)
+                }
+            } else {
+                Intent(Intent.ACTION_VIEW, url.toUri()).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
             }
+
             val reopenPendingIntent = PendingIntent.getActivity(
                 this, 1, reopenIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )

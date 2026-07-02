@@ -37,15 +37,23 @@ class HistoryRepository(val context: Context) {
             items.sortedByDescending { it.timestamp }
         }
 
-    suspend fun addHistoryItem(title: String, url: String) {
+    suspend fun addHistoryItem(title: String, url: String, timestamp: Long = System.currentTimeMillis()) {
         context.historyDataStore.edit { preferences ->
             val jsonString = preferences[HISTORY_KEY] ?: "[]"
             val jsonArray = JSONArray(jsonString)
             
+            // Check for exact duplicate (same URL and same timestamp)
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                if (obj.optString("url") == url && obj.optLong("timestamp") == timestamp) {
+                    return@edit
+                }
+            }
+            
             val newItem = JSONObject().apply {
                 put("title", title)
                 put("url", url)
-                put("timestamp", System.currentTimeMillis())
+                put("timestamp", timestamp)
             }
             
             // Prepend new item

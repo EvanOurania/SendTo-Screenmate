@@ -5,14 +5,14 @@ plugins {
 
 android {
     namespace = "com.example.sendtoscreenmate"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.example.sendtoscreenmate"
         minSdk = 24
-        targetSdk = 35
-        versionCode = 3
-        versionName = "1.1.1"
+        targetSdk = 37
+        versionCode = 105
+        versionName = "1.1.108"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

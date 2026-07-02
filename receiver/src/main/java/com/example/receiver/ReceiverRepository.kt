@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -21,8 +22,15 @@ class ReceiverRepository(val context: Context) {
         val SECRET_KEY_KEY = stringPreferencesKey("secret_key")
         val COPY_TO_CLIPBOARD_KEY = booleanPreferencesKey("copy_to_clipboard")
         val LAST_MESSAGE_TIME_KEY = longPreferencesKey("last_message_time")
+        val AUTO_OPEN_MAPS_APP_KEY = stringPreferencesKey("auto_open_maps_app")
+        val AUTO_OPEN_GEO_APP_KEY = stringPreferencesKey("auto_open_geo_app")
+        val AUTO_OPEN_DELAY_KEY = intPreferencesKey("auto_open_delay")
         
         const val DEFAULT_NTFY_SERVER = "https://ntfy.sh"
+        const val APP_NONE = "none"
+        const val APP_MAPS = "maps"
+        const val APP_WAZE = "waze"
+        const val APP_OTHER = "other"
     }
 
     val ntfyTopic: Flow<String> = context.dataStore.data
@@ -50,6 +58,21 @@ class ReceiverRepository(val context: Context) {
             preferences[LAST_MESSAGE_TIME_KEY] ?: 0L
         }
 
+    val autoOpenMapsApp: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[AUTO_OPEN_MAPS_APP_KEY] ?: APP_NONE
+        }
+
+    val autoOpenGeoApp: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[AUTO_OPEN_GEO_APP_KEY] ?: APP_NONE
+        }
+
+    val autoOpenDelay: Flow<Int> = context.dataStore.data
+        .map { preferences ->
+            preferences[AUTO_OPEN_DELAY_KEY] ?: 5 // Default 5 seconds
+        }
+
     suspend fun saveNtfyConfig(topic: String, server: String) {
         context.dataStore.edit { preferences ->
             preferences[NTFY_TOPIC_KEY] = topic
@@ -72,6 +95,24 @@ class ReceiverRepository(val context: Context) {
     suspend fun saveLastMessageTime(time: Long) {
         context.dataStore.edit { preferences ->
             preferences[LAST_MESSAGE_TIME_KEY] = time
+        }
+    }
+
+    suspend fun saveAutoOpenMapsApp(app: String) {
+        context.dataStore.edit { preferences ->
+            preferences[AUTO_OPEN_MAPS_APP_KEY] = app
+        }
+    }
+
+    suspend fun saveAutoOpenGeoApp(app: String) {
+        context.dataStore.edit { preferences ->
+            preferences[AUTO_OPEN_GEO_APP_KEY] = app
+        }
+    }
+
+    suspend fun saveAutoOpenDelay(seconds: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[AUTO_OPEN_DELAY_KEY] = seconds
         }
     }
 }

@@ -24,9 +24,10 @@
     <string name="generate_confirm_title">Generate New Topic?</string>
     <string name="generate_confirm_msg">Warning: This will invalidate all your Sender configurations. You will need to scan the new QR code on all devices.</string>
     <string name="btn_cancel">Cancel</string>
-    <string name="btn_confirm">Generate</string>
+    <string name="btn_confirm">Confirm</string>
     <string name="qr_instructions">Scan this QR code with the Sender app to pair with E2E encryption</string>
-    <string name="notification_title">Receiver Active</string>
+    <string name="notification_title">Listening</string>
+    <string name="notification_active">Receiver Active</string>
     <string name="notification_stopping">Stopping service…</string>
     <string name="notification_topic_not_set">Topic not configured</string>
     <string name="notification_listening">Listening to %1$s on %2$s</string>
@@ -39,9 +40,27 @@
     <string name="copy_to_clipboard">Auto-copy to clipboard</string>
     <string name="copy_note">Automatically copy received text to clipboard</string>
     <string name="section_permissions">Permissions</string>
+    <string name="section_pairing">Pairing &amp; Connection</string>
     <string name="section_configuration">ntfy.sh Configuration</string>
     <string name="section_instructions">Instructions</string>
     <string name="section_history">History</string>
     <string name="btn_clear_history">Clear History</string>
     <string name="no_history">No items in history yet</string>
+    <string name="clear_history_confirm_title">Clear History?</string>
+    <string name="clear_history_confirm_msg">Are you sure you want to delete all items from your history? This action cannot be undone.</string>
+
+    <string name="section_auto_open">Auto-Open Settings</string>
+    <string name="auto_open_maps_label">For Google Maps links:</string>
+    <string name="auto_open_geo_label">For generic addresses/coords:</string>
+    <string name="auto_open_delay_label">Delay: %1$d seconds (0 = instant)</string>
+    <string name="auto_opening_msg">Auto-opening in %1$d seconds…</string>
+    <string name="pin_warning_msg">Warning: This generic pin might not resolve correctly in Waze.</string>
+    <string name="app_none">Ask Every Time (None)</string>
+
+    <string name="chooser_title">Choose Navigation App</string>
+    <string name="app_maps">Google Maps</string>
+    <string name="app_waze">Waze</string>
+    <string name="app_other">Other App</string>
+    <string name="app_browser">Web Browser</string>
+    <string name="btn_copy">Copy</string>
 </resources>

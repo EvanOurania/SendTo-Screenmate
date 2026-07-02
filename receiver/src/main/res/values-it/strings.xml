@@ -24,9 +24,10 @@
     <string name="generate_confirm_title">Generare nuovo Topic?</string>
     <string name="generate_confirm_msg">Attenzione: questo invaliderà tutte le configurazioni dei tuoi Sender. Dovrai scansionare il nuovo QR code su tutti i dispositivi.</string>
     <string name="btn_cancel">Annulla</string>
-    <string name="btn_confirm">Genera</string>
+    <string name="btn_confirm">Conferma</string>
     <string name="qr_instructions">Scansiona questo QR code con l\'app di invio per l\'accoppiamento E2E</string>
-    <string name="notification_title">Ricevitore Attivo</string>
+    <string name="notification_title">In ascolto</string>
+    <string name="notification_active">Ricevitore Attivo</string>
     <string name="notification_stopping">Interruzione servizio…</string>
     <string name="notification_topic_not_set">Topic non configurato</string>
     <string name="notification_listening">In ascolto su %1$s tramite %2$s</string>
@@ -39,9 +40,27 @@
     <string name="copy_to_clipboard">Copia automatica negli appunti</string>
     <string name="copy_note">Copia automaticamente il testo ricevuto negli appunti</string>
     <string name="section_permissions">Permessi</string>
+    <string name="section_pairing">Accoppiamento e Connessione</string>
     <string name="section_configuration">Configurazione ntfy.sh</string>
     <string name="section_instructions">Istruzioni</string>
     <string name="section_history">Cronologia</string>
     <string name="btn_clear_history">Cancella Cronologia</string>
     <string name="no_history">Nessun elemento in cronologia</string>
+    <string name="clear_history_confirm_title">Cancellare la Cronologia?</string>
+    <string name="clear_history_confirm_msg">Sei sicuro di voler eliminare tutti gli elementi dalla cronologia? L\'azione non è reversibile.</string>
+
+    <string name="section_auto_open">Apertura Automatica</string>
+    <string name="auto_open_maps_label">Per i link Google Maps:</string>
+    <string name="auto_open_geo_label">Per indirizzi/coordinate:</string>
+    <string name="auto_open_delay_label">Ritardo: %1$d secondi (0 = istantaneo)</string>
+    <string name="auto_opening_msg">Apertura automatica in %1$d secondi…</string>
+    <string name="pin_warning_msg">Attenzione: questo segnaposto generico potrebbe non aprirsi correttamente su Waze.</string>
+    <string name="app_none">Chiedi ogni volta (Nessuno)</string>
+
+    <string name="chooser_title">Scegli Navigatore</string>
+    <string name="app_maps">Google Maps</string>
+    <string name="app_waze">Waze</string>
+    <string name="app_other">Altra App</string>
+    <string name="app_browser">Browser Web</string>
+    <string name="btn_copy">Copia</string>
 </resources>

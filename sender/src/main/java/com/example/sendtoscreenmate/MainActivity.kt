@@ -3,6 +3,7 @@ package com.example.sendtoscreenmate
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -65,6 +66,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.fromHtml
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
@@ -90,13 +92,15 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val action = intent?.action
-        val type = intent?.type
-        val data = intent?.data
+        
+        // Android 10 check: broader detection for sharing apps like Brave
+        // We consider it a "Quick Send" if it's NOT a standard launcher launch
+        val isLauncher = action == Intent.ACTION_MAIN && intent?.hasCategory(Intent.CATEGORY_LAUNCHER) == true
+        val hasContent = intent?.hasExtra(Intent.EXTRA_TEXT) == true || intent?.data != null
+        
+        val isShareOrView = !isLauncher && (action != null || hasContent)
 
-        val isShare = (action == Intent.ACTION_SEND && type == "text/plain")
-        val isGeo = ((action == Intent.ACTION_VIEW || action == "android.intent.action.NAVIGATE") && data?.scheme == "geo")
-
-        if (isShare || isGeo) {
+        if (isShareOrView) {
             setTheme(R.style.Theme_SendToScreenMate_Transparent)
             window.setBackgroundDrawableResource(android.R.color.transparent)
             super.onCreate(savedInstanceState)
@@ -148,6 +152,14 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (isShareOrViewIntent()) {
+            handleIncomingData(intent)
         }
     }
 
@@ -372,7 +384,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun isShareOrViewIntent(): Boolean {
-        return intent?.action != null && (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_VIEW || intent.action == "android.intent.action.NAVIGATE")
+        val action = intent?.action
+        val isLauncher = action == Intent.ACTION_MAIN && intent?.hasCategory(Intent.CATEGORY_LAUNCHER) == true
+        val hasContent = intent?.hasExtra(Intent.EXTRA_TEXT) == true || intent?.data != null
+        return !isLauncher && (action != null || hasContent)
     }
 
     // Composable internal logic exposed for Screens
@@ -390,11 +405,32 @@ class MainActivity : ComponentActivity() {
             if (title.isBlank() && url.startsWith("geo:")) {
                 title = extractGeoLabel(url)
             }
-            if (title.isBlank()) title = "Location"
+            if (title.isBlank()) {
+                // THE FIX: Distinguish between location links and generic URLs
+                title = if (MapsUtils.isGoogleMapsLink(url) || url.startsWith("geo:")) {
+                    "Location"
+                } else {
+                    "Link"
+                }
+            }
         } else {
             title = "Text Message"
         }
         performSendData(finalData, title)
+    }
+
+    fun triggerAddressSend(data: String) {
+        val isMapsLink = MapsUtils.isGoogleMapsLink(data)
+        val isGeo = data.trim().startsWith("geo:", ignoreCase = true)
+        
+        if (isMapsLink || isGeo) {
+            // It's already a Maps link or a geo URI, send it normally to avoid double wrapping
+            triggerManualSend(data)
+        } else {
+            // It's a text address, wrap it in a geo URI format
+            val geoUri = "geo:0,0?q=${Uri.encode(data)}"
+            performSendData(geoUri, data.take(50)) // Use part of address as title
+        }
     }
 }
 
@@ -491,17 +527,42 @@ fun SendScreen(navigationPadding: PaddingValues) {
                         modifier = Modifier.fillMaxWidth().heightIn(min = 150.dp, max = 300.dp),
                         maxLines = 15
                     )
-                    Button(
-                        onClick = {
-                            if (manualText.isNotBlank()) {
-                                (context as MainActivity).triggerManualSend(manualText)
-                                manualText = ""
-                            }
-                        },
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = manualText.isNotBlank()
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(stringResource(R.string.btn_send))
+                        Button(
+                            onClick = {
+                                if (manualText.isNotBlank()) {
+                                    (context as MainActivity).triggerManualSend(manualText)
+                                    manualText = ""
+                                }
+                            },
+                            modifier = Modifier.weight(1f).height(64.dp),
+                            enabled = manualText.isNotBlank(),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.btn_send),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                        Button(
+                            onClick = {
+                                if (manualText.isNotBlank()) {
+                                    (context as MainActivity).triggerAddressSend(manualText)
+                                    manualText = ""
+                                }
+                            },
+                            modifier = Modifier.weight(1f).height(64.dp),
+                            enabled = manualText.isNotBlank(),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.btn_send_location),
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
