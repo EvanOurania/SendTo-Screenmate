@@ -16,16 +16,10 @@ This project consists of two separate applications: **Sender** (SendTo ScreenMat
 
 ## 🏗️ Features
 
-### 🚀 Instant Sharing (Sender)
-- **Send Text/Link:** Perfect for websites, messages, or generic URLs. Pairs with "Auto-Copy" for instant clipboard sync.
-- **Send Address:** Precision navigation mode. Converts text addresses to real coordinates and parses Maps links with millimetric accuracy.
 
-### 📥 Smart Reception (Receiver)
+- **Send Text/Link:** Perfect for text, websites, or generic URLs.
+- **Send Address:** Use this option to send text addresses.
 - **Auto-Open:** Automatically launch received links with your preferred navigator (Waze or Google Maps) with custom delays.
-- **Precision Engine:** Extracts real coordinates (`!3d/!4d`) and DMS data from titles, overcoming standard web link limitations.
-- **Waze Optimized:** Native `waze://` support ensuring split-screen stability and clean destination labeling in history.
-
-### 🛠️ Control & Management
 - **Smart History:** Local log of all received data with automatically extracted place names for quick one-tap re-access.
 - **Persistent Notification:** Control center in your status bar to re-open the last location without entering the app.
 - **Universal Auto-Copy:** Full Android 10+ support for invisible and lightning-fast clipboard sync of any data.

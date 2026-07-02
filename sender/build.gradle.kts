@@ -11,8 +11,8 @@ android {
         applicationId = "com.example.sendtoscreenmate"
         minSdk = 24
         targetSdk = 37
-        versionCode = 111
-        versionName = "1.1.114"
+        versionCode = 112
+        versionName = "1.1.115"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
