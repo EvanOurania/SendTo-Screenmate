@@ -18,17 +18,21 @@ This project consists of two separate applications: **Sender** (SendTo ScreenMat
 
 ### 1. SendTo ScreenMate (Sender)
 Install this on your primary phone. It allows you to "Share" any text, URL, or Google Maps location directly to your secondary device.
-- **Features:** QR Code scanner for instant pairing, support for `ntfy.sh` (default) and `MacroDroid` webhooks, and automatic URL extraction.
+- **Features:** 
+    - **Instant Sharing:** Integrated scanner for zero-config pairing.
+    - **Smart Extraction:** Automatically identifies addresses and URLs within shared text.
+    - **Privacy First:** Native E2E encryption for ntfy.sh topics.
 - **Compatibility:** Fully compliant with **Android 15 (16KB page size)** requirements.
 
 ### 2. Receiver
 Install this on the device that should open the links (e.g., your car's tablet).
 - **Features:**
-    - **Smart History:** A new dedicated section that stores all received links and locations for easy access later.
-    - **Advanced Content Handling:** Automatically distinguishes between web links, physical addresses, and coordinates, opening the correct app (Browser or Maps/Waze) or copying text if needed.
-    - **One-Tap Notification:** The persistent notification now allows you to re-open the last received link instantly with a dedicated button.
-    - **Connection & Security:** Generates a secure random Topic, displays a configuration QR Code, and runs a persistent background service to open incoming links instantly.
-- **Reliability:** Built with `Foreground Service`, `WakeLock`, and custom permission management to ensure it stays active even when the screen is off or the app is minimized.
+    - **Precision Navigation:** Advanced coordinate extraction engine (!3d/!4d, DMS) to ensure Waze and Maps open the exact destination.
+    - **Waze Optimized:** Native support for `waze://` protocol and destination labeling for history.
+    - **Smart History:** Stored locally for quick re-access to previous destinations.
+    - **One-Tap Notification:** Re-open the last received link directly from the status bar.
+    - **Zero-Flicker UI:** Refined settings screen with smooth transitions and coordinated loading.
+- **Reliability:** Built with `Foreground Service`, `WakeLock`, and custom permission management to ensure it stays active even when the screen is off.
 
 ---
 
@@ -50,12 +54,6 @@ Install this on the device that should open the links (e.g., your car's tablet).
 ### Step 3: Start Sharing!
 - Open **Google Maps** on your phone, pick a place, tap **"Share"**, and select **SendTo ScreenMate**.
 - The location will instantly pop up on your Receiver device.
-
----
-
-## 💡 Pro Tip: GeoShare Integration
-For the ultimate experience, we highly recommend using **[GeoShare](https://github.com/jakubvalenta/geoshare)** on your primary phone.
-GeoShare is excellent at converting complex map links into clean coordinates. You can share from Maps to GeoShare, and then from GeoShare to **SendTo ScreenMate** for 100% reliability with any navigation app.
 
 ---
 
