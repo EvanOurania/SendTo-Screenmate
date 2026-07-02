@@ -3,8 +3,8 @@
 
     <!-- Theme for Splash Screen (Official Android API) -->
     <style name="Theme.SendToScreenMate.Starting" parent="Theme.SplashScreen">
-        <!-- Set splash background to a dark color to avoid white flash -->
-        <item name="windowSplashScreenBackground">@android:color/black</item>
+        <!-- THE FIX: Use colorBackground to follow system theme (white in light mode, dark in dark mode) -->
+        <item name="windowSplashScreenBackground">?android:attr/colorBackground</item>
         <item name="windowSplashScreenAnimatedIcon">@android:color/transparent</item>
         <item name="postSplashScreenTheme">@style/Theme.SendToScreenMate</item>
     </style>
@@ -13,16 +13,17 @@
     <style name="Theme.SendToScreenMate" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowIsTranslucent">false</item>
         <item name="android:windowIsFloating">false</item>
-        <item name="android:windowBackground">@android:color/white</item>
-        <!-- Prevent white flash on Android 12+ -->
-        <item name="android:windowSplashScreenBackground" tools:targetApi="31">@android:color/white</item>
+        <item name="android:windowBackground">?android:attr/colorBackground</item>
+        <!-- Ensure splash background matches app background during transition -->
+        <item name="android:windowSplashScreenBackground" tools:targetApi="31">?android:attr/colorBackground</item>
     </style>
 
     <!-- Transparent theme for Quick Send popup -->
     <style name="Theme.SendToScreenMate.Transparent" parent="Theme.SendToScreenMate">
-        <!-- Fix for Android 12+ blinding white splash screen.
-             Setting it to black or transparent avoids the flash before the popup appears. -->
-        <item name="android:windowSplashScreenBackground" tools:targetApi="31">@android:color/black</item>
+        <!-- For the Quick Send popup, we keep a dark/dimmed splash to blend with the dimming effect,
+             but using a dynamic attribute is also an option. For now, matching system background
+             is the safest for a smooth transition. -->
+        <item name="android:windowSplashScreenBackground" tools:targetApi="31">?android:attr/colorBackground</item>
 
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:colorBackground">@android:color/transparent</item>
