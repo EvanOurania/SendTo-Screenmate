@@ -17,19 +17,18 @@ This project consists of two separate applications: **Sender** (SendTo ScreenMat
 ## 🏗️ Features
 
 ### 🚀 Instant Sharing (Sender)
-Il Sender offre due modalità di invio intelligenti per coprire ogni scenario:
-- **Invia Testo/Link:** Ideale per inviare siti web, messaggi o link generici. Se il destinatario ha attiva la "Copia Automatica", il testo verrà salvato direttamente negli appunti.
-- **Invia Indirizzo:** Ottimizzato per la navigazione. Converte indirizzi testuali in coordinate reali e gestisce i link di Google Maps con precisione millimetrica, assicurando che il navigatore si apra esattamente sulla destinazione.
+- **Send Text/Link:** Perfect for websites, messages, or generic URLs. Pairs with "Auto-Copy" for instant clipboard sync.
+- **Send Address:** Precision navigation mode. Converts text addresses to real coordinates and parses Maps links with millimetric accuracy.
 
 ### 📥 Smart Reception (Receiver)
-- **Apertura Automatica:** Configura l'app per aprire istantaneamente i link ricevuti con il tuo navigatore preferito (Waze o Google Maps). Puoi impostare un ritardo personalizzato o l'apertura immediata.
-- **Motore di Precisione:** L'app analizza i link di Google Maps estraendo le coordinate reali (`!3d/!4d`) e i dati DMS dai titoli, superando i limiti dei link web standard.
-- **Ottimizzazione Waze:** Supporto nativo per il protocollo `waze://` per garantire che lo split-screen non venga interrotto e che la cronologia di Waze mostri il nome corretto del locale.
+- **Auto-Open:** Automatically launch received links with your preferred navigator (Waze or Google Maps) with custom delays.
+- **Precision Engine:** Extracts real coordinates (`!3d/!4d`) and DMS data from titles, overcoming standard web link limitations.
+- **Waze Optimized:** Native `waze://` support ensuring split-screen stability and clean destination labeling in history.
 
-### 🛠️ Controllo e Gestione
-- **Cronologia Intelligente:** Ogni link o testo ricevuto viene salvato localmente con il nome del posto estratto automaticamente, permettendoti di recuperare vecchie destinazioni in un tocco.
-- **Notifica Persistente:** Un centro di controllo sempre attivo nella barra di stato che mostra l'ultima posizione ricevuta e permette di riaprirla istantaneamente senza entrare nell'app.
-- **Copia Automatica Universale:** Supporto completo per Android 10+ per copiare negli appunti qualsiasi dato ricevuto (testo o link) in modo del tutto invisibile e veloce.
+### 🛠️ Control & Management
+- **Smart History:** Local log of all received data with automatically extracted place names for quick one-tap re-access.
+- **Persistent Notification:** Control center in your status bar to re-open the last location without entering the app.
+- **Universal Auto-Copy:** Full Android 10+ support for invisible and lightning-fast clipboard sync of any data.
 
 ---
 
