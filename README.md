@@ -14,31 +14,31 @@ This project consists of two separate applications: **Sender** (SendTo ScreenMat
 
 ---
 
-## 🏗️ The Apps
+## 🏗️ Features
 
-### 1. SendTo ScreenMate (Sender)
-Install this on your primary phone. It allows you to "Share" any text, URL, or Google Maps location directly to your secondary device.
-- **Features:** 
-    - **Instant Sharing:** Integrated scanner for zero-config pairing.
-    - **Smart Extraction:** Automatically identifies addresses and URLs within shared text.
-    - **Privacy First:** Native E2E encryption for ntfy.sh topics.
-- **Compatibility:** Fully compliant with **Android 15 (16KB page size)** requirements.
+### 🚀 Instant Sharing (Sender)
+Il Sender offre due modalità di invio intelligenti per coprire ogni scenario:
+- **Invia Testo/Link:** Ideale per inviare siti web, messaggi o link generici. Se il destinatario ha attiva la "Copia Automatica", il testo verrà salvato direttamente negli appunti.
+- **Invia Indirizzo:** Ottimizzato per la navigazione. Converte indirizzi testuali in coordinate reali e gestisce i link di Google Maps con precisione millimetrica, assicurando che il navigatore si apra esattamente sulla destinazione.
 
-### 2. Receiver
-Install this on the device that should open the links (e.g., your car's tablet).
-- **Features:**
-    - **Precision Navigation:** Advanced coordinate extraction engine (!3d/!4d, DMS) to ensure Waze and Maps open the exact destination.
-    - **Waze Optimized:** Native support for `waze://` protocol and destination labeling for history.
-    - **Smart History:** Stored locally for quick re-access to previous destinations.
-    - **One-Tap Notification:** Re-open the last received link directly from the status bar.
-    - **Zero-Flicker UI:** Refined settings screen with smooth transitions and coordinated loading.
-- **Reliability:** Built with `Foreground Service`, `WakeLock`, and custom permission management to ensure it stays active even when the screen is off.
+### 📥 Smart Reception (Receiver)
+- **Apertura Automatica:** Configura l'app per aprire istantaneamente i link ricevuti con il tuo navigatore preferito (Waze o Google Maps). Puoi impostare un ritardo personalizzato o l'apertura immediata.
+- **Motore di Precisione:** L'app analizza i link di Google Maps estraendo le coordinate reali (`!3d/!4d`) e i dati DMS dai titoli, superando i limiti dei link web standard.
+- **Ottimizzazione Waze:** Supporto nativo per il protocollo `waze://` per garantire che lo split-screen non venga interrotto e che la cronologia di Waze mostri il nome corretto del locale.
+
+### 🛠️ Controllo e Gestione
+- **Cronologia Intelligente:** Ogni link o testo ricevuto viene salvato localmente con il nome del posto estratto automaticamente, permettendoti di recuperare vecchie destinazioni in un tocco.
+- **Notifica Persistente:** Un centro di controllo sempre attivo nella barra di stato che mostra l'ultima posizione ricevuta e permette di riaprirla istantaneamente senza entrare nell'app.
+- **Copia Automatica Universale:** Supporto completo per Android 10+ per copiare negli appunti qualsiasi dato ricevuto (testo o link) in modo del tutto invisibile e veloce.
 
 ---
 
 ## 🛠️ Setup Instructions
+### Step 1: Installation
+- Install the **Sender** on your primary phone. It allows you to "Share" any text, URL, or Google Maps location directly to your secondary device.
+- Install the **Receiver** on you secondary device
 
-### Step 1: Configure the Receiver
+### Step 2: Configure the Receiver
 1. Open the **Receiver** app on your secondary device.
 2. Click **"Generate Random Topic"** to create a unique, secure connection ID.
 3. **Grant Permissions (Critical):**
@@ -46,12 +46,13 @@ Install this on the device that should open the links (e.g., your car's tablet).
    - Click **"Disable Battery Optimization"** to prevent Android from killing the background listener.
 4. Click **"Start"**. You will see a green status dot saying "Service is running".
 
-### Step 2: Configure the Sender
+### Step 3: Configure the Sender
 1. Open **SendTo ScreenMate** on your primary phone.
 2. Tap **"Scan Receiver QR"** and point your camera at the QR code displayed on the Receiver device.
 3. The server and topic will be filled automatically.
+4. Repeat these steps for every other phones you might have.
 
-### Step 3: Start Sharing!
+### Step 4: Start Sharing!
 - Open **Google Maps** on your phone, pick a place, tap **"Share"**, and select **SendTo ScreenMate**.
 - The location will instantly pop up on your Receiver device.
 
