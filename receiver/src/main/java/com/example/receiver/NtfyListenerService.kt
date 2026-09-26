@@ -87,8 +87,13 @@ class NtfyListenerService : Service() {
                 // Reset last received info to force the notification to show "restarting" status
                 lastReceivedUrl = null
                 lastReceivedTitle = null
-                updateNotification(getString(R.string.notification_restarting))
-                startListening()
+                
+                // Show "Restarting..." then start listening
+                serviceScope.launch {
+                    updateNotification(getString(R.string.notification_restarting))
+                    delay(1500) // Give the user time to read the "Restarting" state
+                    startListening()
+                }
                 return START_STICKY
             }
         }
@@ -104,9 +109,9 @@ class NtfyListenerService : Service() {
             val historyRepo = HistoryRepository(this@NtfyListenerService)
             
             // Monitor preferences
-            launch { repository.showRestartButton.collect { prefShowRestartBtn = it; updateNotification(getString(R.string.notification_listening, repository.ntfyTopic.first(), repository.ntfyServer.first())) } }
-            launch { repository.showStopButton.collect { prefShowStopBtn = it; updateNotification(getString(R.string.notification_listening, repository.ntfyTopic.first(), repository.ntfyServer.first())) } }
-            launch { repository.showReopenButton.collect { prefShowReopenBtn = it; updateNotification(getString(R.string.notification_listening, repository.ntfyTopic.first(), repository.ntfyServer.first())) } }
+            launch { repository.showRestartButton.collect { prefShowRestartBtn = it } }
+            launch { repository.showStopButton.collect { prefShowStopBtn = it } }
+            launch { repository.showReopenButton.collect { prefShowReopenBtn = it } }
             
             val topic = repository.ntfyTopic.first()
             val server = repository.ntfyServer.first()
