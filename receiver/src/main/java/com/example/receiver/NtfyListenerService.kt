@@ -104,9 +104,9 @@ class NtfyListenerService : Service() {
             val historyRepo = HistoryRepository(this@NtfyListenerService)
             
             // Monitor preferences
-            launch { repository.showRestartButton.collect { prefShowRestartBtn = it; updateNotification(getString(R.string.notification_active)) } }
-            launch { repository.showStopButton.collect { prefShowStopBtn = it; updateNotification(getString(R.string.notification_active)) } }
-            launch { repository.showReopenButton.collect { prefShowReopenBtn = it; updateNotification(getString(R.string.notification_active)) } }
+            launch { repository.showRestartButton.collect { prefShowRestartBtn = it; updateNotification(getString(R.string.notification_listening, repository.ntfyTopic.first(), repository.ntfyServer.first())) } }
+            launch { repository.showStopButton.collect { prefShowStopBtn = it; updateNotification(getString(R.string.notification_listening, repository.ntfyTopic.first(), repository.ntfyServer.first())) } }
+            launch { repository.showReopenButton.collect { prefShowReopenBtn = it; updateNotification(getString(R.string.notification_listening, repository.ntfyTopic.first(), repository.ntfyServer.first())) } }
             
             val topic = repository.ntfyTopic.first()
             val server = repository.ntfyServer.first()
@@ -402,6 +402,8 @@ class NtfyListenerService : Service() {
             content
         } else if (!lastReceivedTitle.isNullOrBlank()) {
             lastReceivedTitle!!
+        } else if (content.isNotBlank()) {
+            content
         } else {
             getString(R.string.notification_active)
         }
