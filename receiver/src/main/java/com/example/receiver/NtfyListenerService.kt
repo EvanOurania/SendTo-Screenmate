@@ -67,6 +67,11 @@ class NtfyListenerService : Service() {
                 stopSelf()
                 return START_NOT_STICKY
             }
+            ACTION_RESTART -> {
+                updateNotification(getString(R.string.notification_start))
+                startListening()
+                return START_STICKY
+            }
         }
 
         startListening()
@@ -354,6 +359,13 @@ class NtfyListenerService : Service() {
         val stopPendingIntent = PendingIntent.getService(
             this, 0, stopIntent, PendingIntent.FLAG_IMMUTABLE
         )
+        
+        val restartIntent = Intent(this, NtfyListenerService::class.java).apply {
+            action = ACTION_RESTART
+        }
+        val restartPendingIntent = PendingIntent.getService(
+            this, 2, restartIntent, PendingIntent.FLAG_IMMUTABLE
+        )
 
         val mainIntent = Intent(this, MainActivity::class.java)
         val mainPendingIntent = PendingIntent.getActivity(
@@ -375,6 +387,7 @@ class NtfyListenerService : Service() {
             .setContentIntent(mainPendingIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .addAction(android.R.drawable.ic_popup_sync, getString(R.string.btn_restart), restartPendingIntent)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.btn_stop), stopPendingIntent)
 
         lastReceivedUrl?.let { url ->
@@ -419,6 +432,7 @@ class NtfyListenerService : Service() {
         private const val CHANNEL_ID = "ntfy_listener_channel"
         private const val NOTIFICATION_ID = 1
         const val ACTION_STOP = "STOP_SERVICE"
+        const val ACTION_RESTART = "RESTART_SERVICE"
 
         @Suppress("DEPRECATION")
         fun isRunning(context: Context): Boolean {
