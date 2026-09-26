@@ -132,8 +132,6 @@ class NtfyListenerService : Service() {
                 return@launch
             }
 
-            updateNotification(getString(R.string.notification_listening, topic, server))
-            
             if (lastMessageTime == 0L) {
                 lastMessageTime = persistedLastTime
             }
@@ -152,6 +150,9 @@ class NtfyListenerService : Service() {
                             delay(10000)
                             return@use
                         }
+
+                        // Success! Update notification if we just reconnected
+                        updateNotification(getString(R.string.notification_listening, topic, server))
 
                         val reader = response.body.source().inputStream().bufferedReader()
                         reader.let { br ->
