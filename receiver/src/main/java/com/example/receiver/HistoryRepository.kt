@@ -28,10 +28,16 @@ class HistoryRepository(val context: Context) {
             val items = mutableListOf<HistoryItem>()
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
+                var ts = obj.optLong("timestamp")
+                // AUTO-FIX: ntfy sends seconds, but Date() expects milliseconds.
+                // If the timestamp is too small (less than year 2286 in seconds), it's likely seconds.
+                if (ts in 1..9999999999L) {
+                    ts *= 1000
+                }
                 items.add(HistoryItem(
                     obj.optString("title"),
                     obj.optString("url"),
-                    obj.optLong("timestamp")
+                    ts
                 ))
             }
             items.sortedByDescending { it.timestamp }

@@ -202,7 +202,8 @@ class NtfyListenerService : Service() {
                 // Add to history
                 serviceScope.launch {
                     val historyRepo = HistoryRepository(this@NtfyListenerService)
-                    historyRepo.addHistoryItem(refinedTitle, targetUrl, time)
+                    val historyTimestamp = if (time > 0) time * 1000 else System.currentTimeMillis()
+                    historyRepo.addHistoryItem(refinedTitle, targetUrl, historyTimestamp)
                 }
 
                 // --- CRITICAL FIX 1 & 4: Detection & Correct URL passing ---
