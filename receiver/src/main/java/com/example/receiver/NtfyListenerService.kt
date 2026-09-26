@@ -84,7 +84,10 @@ class NtfyListenerService : Service() {
             ACTION_RESTART -> {
                 closeNotificationPanel()
                 Toast.makeText(this, getString(R.string.toast_restarted), Toast.LENGTH_SHORT).show()
-                updateNotification(getString(R.string.notification_start))
+                // Reset last received info to force the notification to show "restarting" status
+                lastReceivedUrl = null
+                lastReceivedTitle = null
+                updateNotification(getString(R.string.notification_restarting))
                 startListening()
                 return START_STICKY
             }
@@ -395,7 +398,9 @@ class NtfyListenerService : Service() {
 
         // THE FIX: Title is now static "In ascolto", Content shows the last link name
         val notificationTitle = getString(R.string.notification_title)
-        val notificationContent = if (!lastReceivedTitle.isNullOrBlank()) {
+        val notificationContent = if (content == getString(R.string.notification_restarting)) {
+            content
+        } else if (!lastReceivedTitle.isNullOrBlank()) {
             lastReceivedTitle!!
         } else {
             getString(R.string.notification_active)

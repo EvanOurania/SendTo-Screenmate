@@ -31,6 +31,7 @@
     <string name="notification_title">In ascolto</string>
     <string name="notification_active">Ricevitore Attivo</string>
     <string name="notification_stopping">Interruzione servizio…</string>
+    <string name="notification_restarting">Riavvio in corso…</string>
     <string name="notification_topic_not_set">Topic non configurato</string>
     <string name="notification_listening">In ascolto su %1$s tramite %2$s</string>
     <string name="notification_conn_lost">Connessione persa. Riprovo tra 10s…</string>
