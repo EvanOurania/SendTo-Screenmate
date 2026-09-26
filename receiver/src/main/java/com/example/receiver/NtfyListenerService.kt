@@ -59,15 +59,27 @@ class NtfyListenerService : Service() {
         wakeLock?.acquire(24 * 60 * 60 * 1000L) // 24 hours
     }
 
+    private fun closeNotificationPanel() {
+        try {
+            @Suppress("DEPRECATION")
+            sendBroadcast(Intent(Intent.ACTION_CLOSE_SYSTEM_DIALOGS))
+        } catch (_: SecurityException) {
+            // Android 12+ restricts this, but usually allows it if triggered by a notification action
+        }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
         when (action) {
             ACTION_STOP -> {
+                closeNotificationPanel()
                 updateNotification(getString(R.string.notification_stopping))
                 stopSelf()
                 return START_NOT_STICKY
             }
             ACTION_RESTART -> {
+                closeNotificationPanel()
+                Toast.makeText(this, getString(R.string.toast_restarted), Toast.LENGTH_SHORT).show()
                 updateNotification(getString(R.string.notification_start))
                 startListening()
                 return START_STICKY

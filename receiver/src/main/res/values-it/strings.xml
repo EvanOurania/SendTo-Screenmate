@@ -17,6 +17,7 @@
     <string name="disable_battery">Disabilita Ottimizzazione Batteria</string>
     <string name="btn_start">Avvia</string>
     <string name="btn_restart">Riavvia</string>
+    <string name="toast_restarted">Servizio riavviato</string>
     <string name="btn_stop">Stop</string>
     <string name="btn_reopen">Riapri ultimo link</string>
 
