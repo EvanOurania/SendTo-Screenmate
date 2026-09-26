@@ -403,9 +403,16 @@ class NtfyListenerService : Service() {
         )
 
         // THE FIX: Title is now static "In ascolto", Content shows the last link name
-        val notificationTitle = getString(R.string.notification_title)
-        val notificationContent = if (content == getString(R.string.notification_restarting) || content == getString(R.string.notification_conn_lost)) {
+        val isSpecialStatus = content == getString(R.string.notification_restarting) || content == getString(R.string.notification_conn_lost)
+        
+        val notificationTitle = if (isSpecialStatus) {
             content
+        } else {
+            getString(R.string.notification_title)
+        }
+        
+        val notificationContent = if (isSpecialStatus) {
+            getString(R.string.notification_active) // Fallback text underneath the special title
         } else if (!lastReceivedTitle.isNullOrBlank()) {
             lastReceivedTitle!!
         } else if (content.isNotBlank()) {
