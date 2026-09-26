@@ -326,6 +326,9 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
     val savedAutoOpenDelayNullable by repository.autoOpenDelay.collectAsState(initial = null)
     
     val savedCopyToClipboard by repository.copyToClipboard.collectAsState(initial = false)
+    val savedShowRestart by repository.showRestartButton.collectAsState(initial = true)
+    val savedShowStop by repository.showStopButton.collectAsState(initial = true)
+    val savedShowReopen by repository.showReopenButton.collectAsState(initial = true)
     val savedAutoOpenMapsApp by repository.autoOpenMapsApp.collectAsState(initial = ReceiverRepository.APP_NONE)
     val savedAutoOpenGeoApp by repository.autoOpenGeoApp.collectAsState(initial = ReceiverRepository.APP_NONE)
     
@@ -342,6 +345,9 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
     var server by remember(savedServer) { mutableStateOf(savedServer) }
     var secretKey by remember(savedKey) { mutableStateOf(savedKey) }
     var copyToClipboard by remember { mutableStateOf(false) }
+    var showRestartButton by remember { mutableStateOf(true) }
+    var showStopButton by remember { mutableStateOf(true) }
+    var showReopenButton by remember { mutableStateOf(true) }
     var autoOpenMapsApp by remember { mutableStateOf(ReceiverRepository.APP_NONE) }
     var autoOpenGeoApp by remember { mutableStateOf(ReceiverRepository.APP_NONE) }
     var autoOpenDelay by remember { mutableIntStateOf(5) }
@@ -350,6 +356,9 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
     LaunchedEffect(savedServer) { server = savedServer }
     LaunchedEffect(savedKey) { secretKey = savedKey }
     LaunchedEffect(savedCopyToClipboard) { copyToClipboard = savedCopyToClipboard }
+    LaunchedEffect(savedShowRestart) { showRestartButton = savedShowRestart }
+    LaunchedEffect(savedShowStop) { showStopButton = savedShowStop }
+    LaunchedEffect(savedShowReopen) { showReopenButton = savedShowReopen }
     LaunchedEffect(savedAutoOpenMapsApp) { autoOpenMapsApp = savedAutoOpenMapsApp }
     LaunchedEffect(savedAutoOpenGeoApp) { autoOpenGeoApp = savedAutoOpenGeoApp }
     LaunchedEffect(savedAutoOpenDelay) { autoOpenDelay = savedAutoOpenDelay }
@@ -723,6 +732,55 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
                                         onCheckedChange = { 
                                             copyToClipboard = it
                                             scope.launch { repository.saveCopyToClipboard(it) }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        // Section: Notification Buttons
+                        SectionHeader(stringResource(R.string.pref_notification_buttons))
+                        SettingsGroupCard {
+                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(stringResource(R.string.pref_show_restart), style = MaterialTheme.typography.bodyLarge)
+                                    Switch(
+                                        checked = showRestartButton,
+                                        onCheckedChange = { 
+                                            showRestartButton = it
+                                            scope.launch { repository.saveShowRestartButton(it) }
+                                        }
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(stringResource(R.string.pref_show_stop), style = MaterialTheme.typography.bodyLarge)
+                                    Switch(
+                                        checked = showStopButton,
+                                        onCheckedChange = { 
+                                            showStopButton = it
+                                            scope.launch { repository.saveShowStopButton(it) }
+                                        }
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(stringResource(R.string.pref_show_reopen), style = MaterialTheme.typography.bodyLarge)
+                                    Switch(
+                                        checked = showReopenButton,
+                                        onCheckedChange = { 
+                                            showReopenButton = it
+                                            scope.launch { repository.saveShowReopenButton(it) }
                                         }
                                     )
                                 }

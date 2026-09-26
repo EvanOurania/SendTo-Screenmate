@@ -65,4 +65,8 @@
     <string name="app_other">Other App</string>
     <string name="app_browser">Web Browser</string>
     <string name="btn_copy">Copy</string>
+    <string name="pref_notification_buttons">Notification Buttons</string>
+    <string name="pref_show_restart">Show Restart Button</string>
+    <string name="pref_show_stop">Show Stop Button</string>
+    <string name="pref_show_reopen">Show Reopen Button</string>
 </resources>

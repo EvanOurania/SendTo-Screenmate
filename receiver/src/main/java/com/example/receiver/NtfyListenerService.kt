@@ -39,6 +39,10 @@ class NtfyListenerService : Service() {
     private var lastReceivedTitle: String? = null
     private var lastMessageTime: Long = 0
 
+    private var prefShowRestartBtn = true
+    private var prefShowStopBtn = true
+    private var prefShowReopenBtn = true
+
     private val client = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS) // Disable timeout for long polling/streaming
         .connectTimeout(1, TimeUnit.MINUTES)
@@ -95,6 +99,11 @@ class NtfyListenerService : Service() {
         listeningJob = serviceScope.launch {
             val repository = ReceiverRepository(this@NtfyListenerService)
             val historyRepo = HistoryRepository(this@NtfyListenerService)
+            
+            // Monitor preferences
+            launch { repository.showRestartButton.collect { prefShowRestartBtn = it; updateNotification(getString(R.string.notification_active)) } }
+            launch { repository.showStopButton.collect { prefShowStopBtn = it; updateNotification(getString(R.string.notification_active)) } }
+            launch { repository.showReopenButton.collect { prefShowReopenBtn = it; updateNotification(getString(R.string.notification_active)) } }
             
             val topic = repository.ntfyTopic.first()
             val server = repository.ntfyServer.first()
@@ -395,32 +404,40 @@ class NtfyListenerService : Service() {
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(notificationTitle)
             .setContentText(notificationContent)
-            .setSmallIcon(R.drawable.ic_notification) // THE FIX: Monochrome icon for modern Android
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(mainPendingIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .addAction(android.R.drawable.ic_popup_sync, getString(R.string.btn_restart), restartPendingIntent)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.btn_stop), stopPendingIntent)
+
+        if (prefShowRestartBtn) {
+            builder.addAction(android.R.drawable.ic_popup_sync, getString(R.string.btn_restart), restartPendingIntent)
+        }
+        
+        if (prefShowStopBtn) {
+            builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.btn_stop), stopPendingIntent)
+        }
 
         lastReceivedUrl?.let { url ->
-            val isMaps = MapsUtils.isGoogleMapsLink(url)
-            val isGeo = url.startsWith("geo:")
-            
-            val reopenIntent = if (isMaps || isGeo) {
-                Intent(this, ChooserActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    putExtra("url", url)
+            if (prefShowReopenBtn) {
+                val isMaps = MapsUtils.isGoogleMapsLink(url)
+                val isGeo = url.startsWith("geo:")
+                
+                val reopenIntent = if (isMaps || isGeo) {
+                    Intent(this, ChooserActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        putExtra("url", url)
+                    }
+                } else {
+                    Intent(Intent.ACTION_VIEW, url.toUri()).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
                 }
-            } else {
-                Intent(Intent.ACTION_VIEW, url.toUri()).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-            }
 
-            val reopenPendingIntent = PendingIntent.getActivity(
-                this, 1, reopenIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            )
-            builder.addAction(android.R.drawable.ic_menu_revert, getString(R.string.btn_reopen), reopenPendingIntent)
+                val reopenPendingIntent = PendingIntent.getActivity(
+                    this, 1, reopenIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                )
+                builder.addAction(android.R.drawable.ic_menu_revert, getString(R.string.btn_reopen), reopenPendingIntent)
+            }
         }
 
         return builder.build()

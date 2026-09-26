@@ -65,4 +65,8 @@
     <string name="app_other">Altra App</string>
     <string name="app_browser">Browser Web</string>
     <string name="btn_copy">Copia</string>
+    <string name="pref_notification_buttons">Pulsanti della Notifica</string>
+    <string name="pref_show_restart">Mostra pulsante Riavvia</string>
+    <string name="pref_show_stop">Mostra pulsante Stop</string>
+    <string name="pref_show_reopen">Mostra pulsante Riapri</string>
 </resources>

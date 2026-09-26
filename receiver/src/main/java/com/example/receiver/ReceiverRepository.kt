@@ -26,6 +26,10 @@ class ReceiverRepository(val context: Context) {
         val AUTO_OPEN_GEO_APP_KEY = stringPreferencesKey("auto_open_geo_app")
         val AUTO_OPEN_DELAY_KEY = intPreferencesKey("auto_open_delay")
         
+        val SHOW_RESTART_BUTTON_KEY = booleanPreferencesKey("show_restart_button")
+        val SHOW_STOP_BUTTON_KEY = booleanPreferencesKey("show_stop_button")
+        val SHOW_REOPEN_BUTTON_KEY = booleanPreferencesKey("show_reopen_button")
+        
         const val DEFAULT_NTFY_SERVER = "https://ntfy.sh"
         const val APP_NONE = "none"
         const val APP_MAPS = "maps"
@@ -51,6 +55,21 @@ class ReceiverRepository(val context: Context) {
     val copyToClipboard: Flow<Boolean> = context.dataStore.data
         .map { preferences ->
             preferences[COPY_TO_CLIPBOARD_KEY] ?: false
+        }
+
+    val showRestartButton: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[SHOW_RESTART_BUTTON_KEY] ?: true
+        }
+
+    val showStopButton: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[SHOW_STOP_BUTTON_KEY] ?: true
+        }
+
+    val showReopenButton: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[SHOW_REOPEN_BUTTON_KEY] ?: true
         }
 
     val lastMessageTime: Flow<Long> = context.dataStore.data
@@ -89,6 +108,24 @@ class ReceiverRepository(val context: Context) {
     suspend fun saveCopyToClipboard(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[COPY_TO_CLIPBOARD_KEY] = enabled
+        }
+    }
+
+    suspend fun saveShowRestartButton(show: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SHOW_RESTART_BUTTON_KEY] = show
+        }
+    }
+
+    suspend fun saveShowStopButton(show: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SHOW_STOP_BUTTON_KEY] = show
+        }
+    }
+
+    suspend fun saveShowReopenButton(show: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SHOW_REOPEN_BUTTON_KEY] = show
         }
     }
 
