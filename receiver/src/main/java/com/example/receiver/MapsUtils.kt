@@ -28,6 +28,8 @@ object MapsUtils {
     // --- Metadata & Misc ---
     private val PLACE_NAME_REGEX = Regex("/maps/place/([^/]+)")
     private val DMS_REGEX = Regex("(\\d+)°(\\d+)'([\\d.]+)\"([NS])\\s+(\\d+)°(\\d+)'([\\d.]+)\"([EW])")
+    // Whole words only, so that e.g. "Pinerolo" or "Pizzeria Alpina" are not taken for a dropped pin
+    private val DROPPED_PIN_TITLE = Regex("\\b(pin|segnaposto|marcador|repère|gesetzte nadel)\\b", RegexOption.IGNORE_CASE)
 
     private val client = OkHttpClient.Builder()
         .followRedirects(false) // We want to manually inspect the 'Location' header
@@ -135,6 +137,11 @@ object MapsUtils {
     }
 
     /**
+     * Whether a shared title is Google Maps' generic name for a dropped pin rather than a real place name.
+     */
+    fun isDroppedPinTitle(title: String): Boolean = DROPPED_PIN_TITLE.containsMatchIn(title)
+
+    /**
      * Extracts DMS coordinates from a message title (e.g., from Google Maps share).
      */
     fun extractCoordinatesFromTitle(title: String): String? {
@@ -160,7 +167,7 @@ object MapsUtils {
      */
     fun getWazeUri(url: String, title: String): String {
         val coords = extractCoordinates(url) ?: extractCoordinatesFromTitle(title)
-        val placeName = extractPlaceName(url) ?: if (!title.contains("Segnaposto", true) && !title.contains("Pin", true)) title else null
+        val placeName = extractPlaceName(url) ?: if (!isDroppedPinTitle(title)) title else null
         
         return if (coords != null) {
             if (placeName != null && placeName.isNotBlank()) {

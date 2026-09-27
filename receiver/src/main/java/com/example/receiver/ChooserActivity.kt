@@ -260,11 +260,7 @@ class ChooserActivity : ComponentActivity() {
                         ) {
                             val isMapsLink = MapsUtils.isGoogleMapsLink(url)
                             
-                            val isPinTitle = title.contains("Segnaposto", ignoreCase = true) || 
-                                            title.contains("Pin", ignoreCase = true) ||
-                                            title.contains("Marcador", ignoreCase = true) ||
-                                            title.contains("Repère", ignoreCase = true) ||
-                                            title.contains("Gesetzte Nadel", ignoreCase = true)
+                            val isPinTitle = MapsUtils.isDroppedPinTitle(title)
 
                             if (isPinTitle && isMapsLink) {
                                 Text(

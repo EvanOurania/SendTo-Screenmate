@@ -42,6 +42,15 @@ class MapsUtilsTest {
     }
 
     @Test
+    fun testIsDroppedPinTitle() {
+        assertTrue(MapsUtils.isDroppedPinTitle("Dropped pin"))
+        assertTrue(MapsUtils.isDroppedPinTitle("Segnaposto"))
+        assertTrue(MapsUtils.isDroppedPinTitle("Repère placé"))
+        assertFalse(MapsUtils.isDroppedPinTitle("Pinerolo"))
+        assertFalse(MapsUtils.isDroppedPinTitle("Pizzeria Alpina"))
+    }
+
+    @Test
     fun testGetGenericMapsUri() {
         // Test when it should wrap in geo:
         val input = "google.com/maps/place/Rome"
