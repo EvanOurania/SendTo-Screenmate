@@ -31,6 +31,9 @@ enum class SendResult(@StringRes val messageRes: Int, private val isLongMessage:
 /** Sends links and text to the Receiver, shared by MainActivity and QuickSendActivity. */
 object MessageSender {
     private const val MAX_PAYLOAD_LENGTH = 3000
+    // ntfy turns longer messages into file attachments, which the Receiver can't read. Encryption and
+    // non-ASCII characters (accents, emoji) make a message bigger than its number of characters.
+    private const val NTFY_MAX_MESSAGE_BYTES = 4096
 
     private val client = OkHttpClient()
 
@@ -79,10 +82,12 @@ object MessageSender {
         val cleanTopic = topic.trim()
         if (!WebhookRepository.isValidTopic(cleanTopic)) return SendResult.INVALID_TOPIC
 
+        val body = if (encryptionEnabled) CryptoManager.encrypt(payload, secretKey) else payload
+        if (body.toByteArray(Charsets.UTF_8).size > NTFY_MAX_MESSAGE_BYTES) return SendResult.TOO_LONG
+
         return withContext(Dispatchers.IO) {
             try {
                 val finalUrl = "${WebhookRepository.normalizeServerUrl(server)}/$cleanTopic"
-                val body = if (encryptionEnabled) CryptoManager.encrypt(payload, secretKey) else payload
                 val request = Request.Builder().url(finalUrl).post(body.toRequestBody("text/plain".toMediaType())).build()
                 val success = client.newCall(request).execute().use { it.isSuccessful }
                 if (success) SendResult.SENT else SendResult.FAILED
