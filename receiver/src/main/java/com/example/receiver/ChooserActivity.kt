@@ -142,7 +142,7 @@ class ChooserActivity : ComponentActivity() {
         }
     }
 
-    private fun executeAutoOpen(url: String, title: String, preferredApp: String) {
+    private suspend fun executeAutoOpen(url: String, title: String, preferredApp: String) {
         when (preferredApp) {
             ReceiverRepository.APP_MAPS -> {
                 val coords = MapsUtils.extractCoordinates(url)
@@ -150,7 +150,7 @@ class ChooserActivity : ComponentActivity() {
                 openWithPackage(targetUri, "com.google.android.apps.maps")
             }
             ReceiverRepository.APP_WAZE -> {
-                val targetUri = MapsUtils.getWazeUri(url, title)
+                val targetUri = MapsUtils.getWazeUriResolvingShortLink(url, title)
                 openWithPackage(targetUri, "com.waze")
             }
             ReceiverRepository.APP_OTHER -> {
@@ -304,8 +304,10 @@ class ChooserActivity : ComponentActivity() {
                                     contentColor = if (preferredApp == ReceiverRepository.APP_WAZE) highlightContent else normalContent,
                                     onClick = { 
                                         isAutoOpenEnabled = false
-                                        val targetUri = MapsUtils.getWazeUri(url, title)
-                                        onOptionSelected("com.waze", targetUri)
+                                        lifecycleScope.launch {
+                                            val targetUri = MapsUtils.getWazeUriResolvingShortLink(url, title)
+                                            onOptionSelected("com.waze", targetUri)
+                                        }
                                     }
                                 )
                             }

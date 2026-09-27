@@ -1,10 +1,14 @@
 package com.example.receiver
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.TimeUnit
 
 object MapsUtils {
     // --- Google Maps Patterns ---
@@ -27,28 +31,44 @@ object MapsUtils {
 
     private val client = OkHttpClient.Builder()
         .followRedirects(false) // We want to manually inspect the 'Location' header
+        .callTimeout(5, TimeUnit.SECONDS) // Don't hold up opening the navigator on a slow network
         .build()
 
     /**
-     * Resolves shortened URLs (like goo.gl or maps.app.goo.gl) to their full versions.
+     * Resolves Google Maps short links (maps.app.goo.gl, goo.gl/maps) to their full versions.
      * This is a blocking network call and should be called from a background thread.
      */
     fun resolveShortLink(shortUrl: String): String {
-        if (!shortUrl.contains("goo.gl") && !shortUrl.contains("bit.ly") && !shortUrl.contains("t.co")) {
+        val host = shortUrl.toHttpUrlOrNull()?.host ?: return shortUrl
+        if (host != "maps.app.goo.gl" && host != "goo.gl") {
             return shortUrl
         }
-        
+
         return try {
-            val request = Request.Builder().url(shortUrl).head().build()
+            val request = Request.Builder().url(shortUrl).build()
             client.newCall(request).execute().use { response ->
-                if (response.code == 301 || response.code == 302) {
-                    response.header("Location") ?: shortUrl
+                val location = response.header("Location")
+                if (response.isRedirect && location != null && location.startsWith("http")) {
+                    location
                 } else {
                     shortUrl
                 }
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             shortUrl
+        }
+    }
+
+    /**
+     * Like [getWazeUri], but first expands Google Maps short links so Waze gets the exact
+     * coordinates. Falls back to the original link when that doesn't yield any coordinates.
+     */
+    suspend fun getWazeUriResolvingShortLink(url: String, title: String): String {
+        val resolvedUrl = withContext(Dispatchers.IO) { resolveShortLink(url) }
+        return if (resolvedUrl != url && extractCoordinates(resolvedUrl) != null) {
+            getWazeUri(resolvedUrl, title)
+        } else {
+            getWazeUri(url, title)
         }
     }
 

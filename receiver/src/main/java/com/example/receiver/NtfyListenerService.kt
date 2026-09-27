@@ -368,7 +368,7 @@ class NtfyListenerService : Service() {
 
                             // Build the final URI for direct launch
                             val targetUri = if (preferredApp == ReceiverRepository.APP_WAZE) {
-                                MapsUtils.getWazeUri(rawMapsUrl, displayTitle)
+                                MapsUtils.getWazeUriResolvingShortLink(rawMapsUrl, displayTitle)
                             } else if (preferredApp == ReceiverRepository.APP_MAPS) {
                                 val coords = MapsUtils.extractCoordinates(rawMapsUrl)
                                 if (coords != null) "geo:$coords?q=$coords" else rawMapsUrl
