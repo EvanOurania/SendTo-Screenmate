@@ -13,6 +13,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
@@ -103,8 +104,10 @@ class NtfyListenerService : Service() {
     }
 
     private fun startListening() {
+        Log.d("NtfyListener", "startListening() called - cancelling previous job if any")
         listeningJob?.cancel()
         listeningJob = serviceScope.launch {
+            Log.d("NtfyListener", "Coroutine started: fetching preferences")
             val repository = ReceiverRepository(this@NtfyListenerService)
             val historyRepo = HistoryRepository(this@NtfyListenerService)
             
@@ -144,26 +147,32 @@ class NtfyListenerService : Service() {
                         .url(url)
                         .build()
 
+                    Log.d("NtfyListener", "Executing HTTP Request to $url")
                     client.newCall(request).execute().use { response ->
                         if (!response.isSuccessful) {
+                            Log.e("NtfyListener", "HTTP Error: ${response.code}")
                             updateNotification("Error: ${response.code}")
                             delay(10000)
                             return@use
                         }
 
                         // Success! Update notification if we just reconnected
+                        Log.d("NtfyListener", "Connection successful! Listening for stream...")
                         updateNotification(getString(R.string.notification_listening, topic, server))
 
                         val reader = response.body.source().inputStream().bufferedReader()
                         reader.let { br ->
                             while (isActive) {
                                 val line = br.readLine() ?: break
+                                Log.d("NtfyListener", "Received line from stream")
                                 processLine(line, secretKey, copyToClipboard)
                                 updateNotification(getString(R.string.notification_listening, topic, server))
                             }
+                            Log.d("NtfyListener", "Stream ended or coroutine inactive")
                         }
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.e("NtfyListener", "Exception in connection loop", e)
                     if (isActive) {
                         updateNotification(getString(R.string.notification_conn_lost))
                         delay(5000)
