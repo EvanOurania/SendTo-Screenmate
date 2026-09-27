@@ -37,6 +37,14 @@ class ReceiverRepository(val context: Context) {
         const val APP_WAZE = "waze"
         const val APP_OTHER = "other"
 
+        // Defaults used until the user changes a setting (e.g. on first launch)
+        const val DEFAULT_AUTO_OPEN_APP = APP_WAZE
+        const val DEFAULT_AUTO_OPEN_DELAY = 5 // seconds
+        const val DEFAULT_COPY_TO_CLIPBOARD = true
+        const val DEFAULT_SHOW_RESTART_BUTTON = true
+        const val DEFAULT_SHOW_STOP_BUTTON = false
+        const val DEFAULT_SHOW_REOPEN_BUTTON = true
+
         private val TOPIC_REGEX = Regex("^[-_A-Za-z0-9]{1,64}$")
 
         /** ntfy topic names may only contain letters, digits, '-' and '_' (max 64 characters). */
@@ -66,22 +74,22 @@ class ReceiverRepository(val context: Context) {
 
     val copyToClipboard: Flow<Boolean> = context.dataStore.data
         .map { preferences ->
-            preferences[COPY_TO_CLIPBOARD_KEY] ?: false
+            preferences[COPY_TO_CLIPBOARD_KEY] ?: DEFAULT_COPY_TO_CLIPBOARD
         }
 
     val showRestartButton: Flow<Boolean> = context.dataStore.data
         .map { preferences ->
-            preferences[SHOW_RESTART_BUTTON_KEY] ?: true
+            preferences[SHOW_RESTART_BUTTON_KEY] ?: DEFAULT_SHOW_RESTART_BUTTON
         }
 
     val showStopButton: Flow<Boolean> = context.dataStore.data
         .map { preferences ->
-            preferences[SHOW_STOP_BUTTON_KEY] ?: true
+            preferences[SHOW_STOP_BUTTON_KEY] ?: DEFAULT_SHOW_STOP_BUTTON
         }
 
     val showReopenButton: Flow<Boolean> = context.dataStore.data
         .map { preferences ->
-            preferences[SHOW_REOPEN_BUTTON_KEY] ?: true
+            preferences[SHOW_REOPEN_BUTTON_KEY] ?: DEFAULT_SHOW_REOPEN_BUTTON
         }
 
     val lastMessageTime: Flow<Long> = context.dataStore.data
@@ -96,17 +104,17 @@ class ReceiverRepository(val context: Context) {
 
     val autoOpenMapsApp: Flow<String> = context.dataStore.data
         .map { preferences ->
-            preferences[AUTO_OPEN_MAPS_APP_KEY] ?: APP_NONE
+            preferences[AUTO_OPEN_MAPS_APP_KEY] ?: DEFAULT_AUTO_OPEN_APP
         }
 
     val autoOpenGeoApp: Flow<String> = context.dataStore.data
         .map { preferences ->
-            preferences[AUTO_OPEN_GEO_APP_KEY] ?: APP_NONE
+            preferences[AUTO_OPEN_GEO_APP_KEY] ?: DEFAULT_AUTO_OPEN_APP
         }
 
     val autoOpenDelay: Flow<Int> = context.dataStore.data
         .map { preferences ->
-            preferences[AUTO_OPEN_DELAY_KEY] ?: 5 // Default 5 seconds
+            preferences[AUTO_OPEN_DELAY_KEY] ?: DEFAULT_AUTO_OPEN_DELAY
         }
 
     suspend fun saveNtfyConfig(topic: String, server: String) {

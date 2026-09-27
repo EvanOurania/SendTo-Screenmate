@@ -80,9 +80,9 @@ class NtfyListenerService : Service() {
         }
     }
 
-    private var prefShowRestartBtn = true
-    private var prefShowStopBtn = true
-    private var prefShowReopenBtn = true
+    private var prefShowRestartBtn = ReceiverRepository.DEFAULT_SHOW_RESTART_BUTTON
+    private var prefShowStopBtn = ReceiverRepository.DEFAULT_SHOW_STOP_BUTTON
+    private var prefShowReopenBtn = ReceiverRepository.DEFAULT_SHOW_REOPEN_BUTTON
 
     private val client = OkHttpClient.Builder()
         // ntfy sends a keepalive line every 45s: if nothing arrives for longer than that,

@@ -310,12 +310,12 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
     val savedKeyNullable by repository.secretKey.collectAsState(initial = null)
     val savedAutoOpenDelayNullable by repository.autoOpenDelay.collectAsState(initial = null)
     
-    val savedCopyToClipboard by repository.copyToClipboard.collectAsState(initial = false)
-    val savedShowRestart by repository.showRestartButton.collectAsState(initial = true)
-    val savedShowStop by repository.showStopButton.collectAsState(initial = true)
-    val savedShowReopen by repository.showReopenButton.collectAsState(initial = true)
-    val savedAutoOpenMapsApp by repository.autoOpenMapsApp.collectAsState(initial = ReceiverRepository.APP_NONE)
-    val savedAutoOpenGeoApp by repository.autoOpenGeoApp.collectAsState(initial = ReceiverRepository.APP_NONE)
+    val savedCopyToClipboard by repository.copyToClipboard.collectAsState(initial = ReceiverRepository.DEFAULT_COPY_TO_CLIPBOARD)
+    val savedShowRestart by repository.showRestartButton.collectAsState(initial = ReceiverRepository.DEFAULT_SHOW_RESTART_BUTTON)
+    val savedShowStop by repository.showStopButton.collectAsState(initial = ReceiverRepository.DEFAULT_SHOW_STOP_BUTTON)
+    val savedShowReopen by repository.showReopenButton.collectAsState(initial = ReceiverRepository.DEFAULT_SHOW_REOPEN_BUTTON)
+    val savedAutoOpenMapsApp by repository.autoOpenMapsApp.collectAsState(initial = ReceiverRepository.DEFAULT_AUTO_OPEN_APP)
+    val savedAutoOpenGeoApp by repository.autoOpenGeoApp.collectAsState(initial = ReceiverRepository.DEFAULT_AUTO_OPEN_APP)
     
     var textFieldsLoaded by remember { mutableStateOf(false) }
 
@@ -327,18 +327,18 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
     val savedTopic = savedTopicNullable ?: ""
     val savedServer = savedServerNullable ?: "https://ntfy.sh"
     val savedKey = savedKeyNullable ?: ""
-    val savedAutoOpenDelay = savedAutoOpenDelayNullable ?: 5
+    val savedAutoOpenDelay = savedAutoOpenDelayNullable ?: ReceiverRepository.DEFAULT_AUTO_OPEN_DELAY
 
     var topic by remember { mutableStateOf("") }
     var server by remember { mutableStateOf("") }
     var secretKey by remember { mutableStateOf("") }
-    var copyToClipboard by remember { mutableStateOf(false) }
-    var showRestartButton by remember { mutableStateOf(true) }
-    var showStopButton by remember { mutableStateOf(true) }
-    var showReopenButton by remember { mutableStateOf(true) }
-    var autoOpenMapsApp by remember { mutableStateOf(ReceiverRepository.APP_NONE) }
-    var autoOpenGeoApp by remember { mutableStateOf(ReceiverRepository.APP_NONE) }
-    var autoOpenDelay by remember { mutableIntStateOf(5) }
+    var copyToClipboard by remember { mutableStateOf(ReceiverRepository.DEFAULT_COPY_TO_CLIPBOARD) }
+    var showRestartButton by remember { mutableStateOf(ReceiverRepository.DEFAULT_SHOW_RESTART_BUTTON) }
+    var showStopButton by remember { mutableStateOf(ReceiverRepository.DEFAULT_SHOW_STOP_BUTTON) }
+    var showReopenButton by remember { mutableStateOf(ReceiverRepository.DEFAULT_SHOW_REOPEN_BUTTON) }
+    var autoOpenMapsApp by remember { mutableStateOf(ReceiverRepository.DEFAULT_AUTO_OPEN_APP) }
+    var autoOpenGeoApp by remember { mutableStateOf(ReceiverRepository.DEFAULT_AUTO_OPEN_APP) }
+    var autoOpenDelay by remember { mutableIntStateOf(ReceiverRepository.DEFAULT_AUTO_OPEN_DELAY) }
     
     // Fill the text fields from storage only once: re-filling them after every save would
     // overwrite what the user is still typing (lost characters, jumping cursor)
