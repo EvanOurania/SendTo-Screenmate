@@ -410,16 +410,8 @@ class NtfyListenerService : Service() {
                                 }
                             }
 
-                            // For locations with delay, use ChooserActivity
-                            OpenAction.CHOOSER -> {
-                                val intent = Intent(this@NtfyListenerService, ChooserActivity::class.java).apply {
-                                    // Minimalist flags are safer for split-screen
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    putExtra("url", rawMapsUrl) 
-                                    putExtra("title", displayTitle)
-                                }
-                                startActivity(intent)
-                            }
+                            // For locations with delay, show the chooser and its countdown
+                            OpenAction.CHOOSER -> showChooser(rawMapsUrl, displayTitle)
 
                             OpenAction.DEFAULT_APP -> openUrl(finalUrl)
                         }
@@ -441,19 +433,32 @@ class NtfyListenerService : Service() {
         Toast.makeText(this@NtfyListenerService, R.string.text_copied_toast, Toast.LENGTH_SHORT).show()
     }
 
+    /**
+     * Shows the navigation chooser drawn over the other apps, which leaves a split screen untouched.
+     * Without the "Display over other apps" permission it falls back to ChooserActivity.
+     */
+    private fun showChooser(url: String, title: String) {
+        serviceScope.launch(Dispatchers.Main) {
+            if (ChooserOverlay.canShow(this@NtfyListenerService)) {
+                ChooserOverlay.show(this@NtfyListenerService, url, title)
+            } else {
+                val intent = Intent(this@NtfyListenerService, ChooserActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    putExtra("url", url)
+                    putExtra("title", title)
+                }
+                startActivity(intent)
+            }
+        }
+    }
+
     private fun openUrl(url: String) {
         // If it's a location or Maps link, use our custom chooser
         val isMaps = MapsUtils.isGoogleMapsLink(url)
         val isGeo = url.startsWith("geo:")
 
         if (isMaps || isGeo) {
-            val intent = Intent(this, ChooserActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                putExtra("url", url)
-                // We don't have a title here for notification reopens, so we'll pass an empty string
-                putExtra("title", "")
-            }
-            startActivity(intent)
+            showChooser(url, title = "")
         } else {
             // Direct browser opening for standard links
             val intent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
@@ -597,6 +602,7 @@ class NtfyListenerService : Service() {
     }
 
     override fun onDestroy() {
+        ChooserOverlay.dismiss()
         try {
             getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(networkCallback)
         } catch (_: IllegalArgumentException) {
