@@ -45,6 +45,9 @@ To pair more phones later, tap <b>\"Show QR code for the Sender\"</b>.]]></strin
     <string name="show_qr">Show QR code for the Sender</string>
     <string name="hide_qr">Hide QR code</string>
     <string name="notification_message_rejected">Message ignored: wrong encryption key</string>
+    <string name="notification_plain_rejected">Message ignored: not encrypted</string>
+    <string name="pref_only_encrypted">Accept only encrypted messages</string>
+    <string name="pref_only_encrypted_note">Ignore links sent with encryption turned off in the Sender. Needs a key (\"Generate Topic and Key\").</string>
     <string name="service_running">Service is running</string>
     <string name="service_not_running">Service is NOT running</string>
     <string name="copy_to_clipboard">Auto-copy to clipboard</string>

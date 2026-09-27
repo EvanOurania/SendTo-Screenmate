@@ -83,6 +83,7 @@ class NtfyListenerService : Service() {
     private var prefShowRestartBtn = ReceiverRepository.DEFAULT_SHOW_RESTART_BUTTON
     private var prefShowStopBtn = ReceiverRepository.DEFAULT_SHOW_STOP_BUTTON
     private var prefShowReopenBtn = ReceiverRepository.DEFAULT_SHOW_REOPEN_BUTTON
+    private var prefOnlyEncrypted = ReceiverRepository.DEFAULT_ONLY_ENCRYPTED
 
     private val client = OkHttpClient.Builder()
         // ntfy sends a keepalive line every 45s: if nothing arrives for longer than that,
@@ -182,6 +183,7 @@ class NtfyListenerService : Service() {
             launch { repository.showRestartButton.collect { prefShowRestartBtn = it } }
             launch { repository.showStopButton.collect { prefShowStopBtn = it } }
             launch { repository.showReopenButton.collect { prefShowReopenBtn = it } }
+            launch { repository.onlyEncrypted.collect { prefOnlyEncrypted = it } }
             
             val topic = repository.ntfyTopic.first().trim()
             val server = ReceiverRepository.normalizeServerUrl(repository.ntfyServer.first())
@@ -313,6 +315,11 @@ class NtfyListenerService : Service() {
                             return
                         }
                         // Sent in plain text (encryption turned off in the Sender)
+                        if (prefOnlyEncrypted) {
+                            Log.w("NtfyListener", "Ignoring plain text message: only encrypted ones are accepted")
+                            updateNotification(getString(R.string.notification_plain_rejected), isStatus = true)
+                            return
+                        }
                         rawMessage
                     }
                 } else {

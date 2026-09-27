@@ -320,6 +320,7 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
     val savedAutoOpenDelayNullable by repository.autoOpenDelay.collectAsState(initial = null)
     
     val savedCopyToClipboard by repository.copyToClipboard.collectAsState(initial = ReceiverRepository.DEFAULT_COPY_TO_CLIPBOARD)
+    val savedOnlyEncrypted by repository.onlyEncrypted.collectAsState(initial = ReceiverRepository.DEFAULT_ONLY_ENCRYPTED)
     val savedShowRestart by repository.showRestartButton.collectAsState(initial = ReceiverRepository.DEFAULT_SHOW_RESTART_BUTTON)
     val savedShowStop by repository.showStopButton.collectAsState(initial = ReceiverRepository.DEFAULT_SHOW_STOP_BUTTON)
     val savedShowReopen by repository.showReopenButton.collectAsState(initial = ReceiverRepository.DEFAULT_SHOW_REOPEN_BUTTON)
@@ -342,6 +343,7 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
     var server by remember { mutableStateOf("") }
     var secretKey by remember { mutableStateOf("") }
     var copyToClipboard by remember { mutableStateOf(ReceiverRepository.DEFAULT_COPY_TO_CLIPBOARD) }
+    var onlyEncrypted by remember { mutableStateOf(ReceiverRepository.DEFAULT_ONLY_ENCRYPTED) }
     var showRestartButton by remember { mutableStateOf(ReceiverRepository.DEFAULT_SHOW_RESTART_BUTTON) }
     var showStopButton by remember { mutableStateOf(ReceiverRepository.DEFAULT_SHOW_STOP_BUTTON) }
     var showReopenButton by remember { mutableStateOf(ReceiverRepository.DEFAULT_SHOW_REOPEN_BUTTON) }
@@ -361,6 +363,7 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
         }
     }
     LaunchedEffect(savedCopyToClipboard) { copyToClipboard = savedCopyToClipboard }
+    LaunchedEffect(savedOnlyEncrypted) { onlyEncrypted = savedOnlyEncrypted }
     LaunchedEffect(savedShowRestart) { showRestartButton = savedShowRestart }
     LaunchedEffect(savedShowStop) { showStopButton = savedShowStop }
     LaunchedEffect(savedShowReopen) { showReopenButton = savedShowReopen }
@@ -750,6 +753,25 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
                                         onCheckedChange = { 
                                             copyToClipboard = it
                                             scope.launch { repository.saveCopyToClipboard(it) }
+                                        }
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(stringResource(R.string.pref_only_encrypted), style = MaterialTheme.typography.bodyLarge)
+                                        Text(stringResource(R.string.pref_only_encrypted_note), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Switch(
+                                        checked = onlyEncrypted,
+                                        // Without a key there is nothing to decrypt with
+                                        enabled = secretKey.isNotBlank(),
+                                        onCheckedChange = {
+                                            onlyEncrypted = it
+                                            scope.launch { repository.saveOnlyEncrypted(it) }
                                         }
                                     )
                                 }

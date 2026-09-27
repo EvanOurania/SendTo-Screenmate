@@ -21,6 +21,7 @@ class ReceiverRepository(val context: Context) {
         val NTFY_SERVER_KEY = stringPreferencesKey("ntfy_server")
         val SECRET_KEY_KEY = stringPreferencesKey("secret_key")
         val COPY_TO_CLIPBOARD_KEY = booleanPreferencesKey("copy_to_clipboard")
+        val ONLY_ENCRYPTED_KEY = booleanPreferencesKey("only_encrypted")
         val LAST_MESSAGE_TIME_KEY = longPreferencesKey("last_message_time")
         val LAST_MESSAGE_ID_KEY = stringPreferencesKey("last_message_id")
         val AUTO_OPEN_MAPS_APP_KEY = stringPreferencesKey("auto_open_maps_app")
@@ -41,6 +42,7 @@ class ReceiverRepository(val context: Context) {
         const val DEFAULT_AUTO_OPEN_APP = APP_WAZE
         const val DEFAULT_AUTO_OPEN_DELAY = 5 // seconds
         const val DEFAULT_COPY_TO_CLIPBOARD = true
+        const val DEFAULT_ONLY_ENCRYPTED = false
         const val DEFAULT_SHOW_RESTART_BUTTON = true
         const val DEFAULT_SHOW_STOP_BUTTON = false
         const val DEFAULT_SHOW_REOPEN_BUTTON = true
@@ -75,6 +77,11 @@ class ReceiverRepository(val context: Context) {
     val copyToClipboard: Flow<Boolean> = context.dataStore.data
         .map { preferences ->
             preferences[COPY_TO_CLIPBOARD_KEY] ?: DEFAULT_COPY_TO_CLIPBOARD
+        }
+
+    val onlyEncrypted: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[ONLY_ENCRYPTED_KEY] ?: DEFAULT_ONLY_ENCRYPTED
         }
 
     val showRestartButton: Flow<Boolean> = context.dataStore.data
@@ -133,6 +140,12 @@ class ReceiverRepository(val context: Context) {
     suspend fun saveCopyToClipboard(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[COPY_TO_CLIPBOARD_KEY] = enabled
+        }
+    }
+
+    suspend fun saveOnlyEncrypted(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[ONLY_ENCRYPTED_KEY] = enabled
         }
     }
 
