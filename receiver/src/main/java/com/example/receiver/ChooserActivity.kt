@@ -14,10 +14,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Map
-import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -33,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -241,7 +236,7 @@ class ChooserActivity : ComponentActivity() {
 
                             if (isPackageInstalled("com.google.android.apps.maps")) {
                                 ChooserOption(
-                                    icon = Icons.Default.Map,
+                                    icon = painterResource(id = R.drawable.ic_map),
                                     label = stringResource(R.string.app_maps),
                                     containerColor = if (preferredApp == ReceiverRepository.APP_MAPS) highlightContainer else normalContainer,
                                     contentColor = if (preferredApp == ReceiverRepository.APP_MAPS) highlightContent else normalContent,
@@ -256,7 +251,7 @@ class ChooserActivity : ComponentActivity() {
 
                             if (isPackageInstalled("com.waze")) {
                                 ChooserOption(
-                                    iconPainter = painterResource(id = R.drawable.ic_waze),
+                                    icon = painterResource(id = R.drawable.ic_waze),
                                     label = stringResource(R.string.app_waze),
                                     containerColor = if (preferredApp == ReceiverRepository.APP_WAZE) highlightContainer else normalContainer,
                                     contentColor = if (preferredApp == ReceiverRepository.APP_WAZE) highlightContent else normalContent,
@@ -271,7 +266,7 @@ class ChooserActivity : ComponentActivity() {
                             }
 
                             ChooserOption(
-                                icon = Icons.Default.Navigation,
+                                icon = painterResource(id = R.drawable.ic_navigation),
                                 label = stringResource(R.string.app_other),
                                 containerColor = if (preferredApp == ReceiverRepository.APP_OTHER) highlightContainer else normalContainer,
                                 contentColor = if (preferredApp == ReceiverRepository.APP_OTHER) highlightContent else normalContent,
@@ -285,7 +280,7 @@ class ChooserActivity : ComponentActivity() {
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                             ChooserOption(
-                                icon = Icons.Default.ContentCopy,
+                                icon = painterResource(id = R.drawable.ic_content_copy),
                                 label = stringResource(R.string.btn_copy),
                                 onClick = {
                                     isAutoOpenEnabled = false
@@ -326,8 +321,7 @@ class ChooserActivity : ComponentActivity() {
 
     @Composable
     fun ChooserOption(
-        icon: ImageVector? = null,
-        iconPainter: Painter? = null,
+        icon: Painter,
         label: String,
         containerColor: Color = MaterialTheme.colorScheme.surfaceVariant,
         contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -347,11 +341,7 @@ class ChooserActivity : ComponentActivity() {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Start
             ) {
-                if (icon != null) {
-                    Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp))
-                } else if (iconPainter != null) {
-                    Icon(iconPainter, contentDescription = null, modifier = Modifier.size(32.dp))
-                }
+                Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp))
                 Spacer(modifier = Modifier.width(20.dp))
                 Text(text = label, style = MaterialTheme.typography.titleLarge)
             }
