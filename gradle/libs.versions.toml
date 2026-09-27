@@ -2,6 +2,7 @@
 agp = "9.4.1"
 coreKtx = "1.18.0"
 junit = "4.13.2"
+orgJson = "20240303"
 junitVersion = "1.3.0"
 espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.10.0"
@@ -23,6 +24,8 @@ zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" 
 zxing-android-embedded = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxingAndroidEmbedded" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+# Real org.json for unit tests: the one in the Android SDK is only a stub off-device
+org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }

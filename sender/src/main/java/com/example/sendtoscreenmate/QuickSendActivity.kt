@@ -98,37 +98,17 @@ class QuickSendActivity : ComponentActivity() {
         val fullText = intent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
         val subject = intent.getStringExtra(Intent.EXTRA_SUBJECT) ?: ""
         val dataString = intent.dataString ?: ""
-        
-        var url = MessageSender.extractUrl(fullText)
-        if (url.isBlank() && dataString.startsWith("geo:")) {
-            url = dataString
-        }
-        
-        var title = ""
-        if (intent.action == Intent.ACTION_SEND) {
-            if (subject.isNotBlank()) {
-                title = subject.trim()
-            } else if (url.isNotBlank()) {
-                val textBeforeUrl = fullText.substringBefore(url).trim()
-                if (textBeforeUrl.isNotBlank()) {
-                    title = textBeforeUrl.split("\n", "·", " - ").first().trim()
-                }
-            }
-            if (title.isBlank() && url.startsWith("geo:")) {
-                title = MessageSender.extractGeoLabel(url)
-            }
-        } else if (intent.action == Intent.ACTION_VIEW || intent.action == "android.intent.action.NAVIGATE") {
-            title = MessageSender.extractGeoLabel(dataString).ifBlank { "Position" }
-            if (url.isBlank()) url = dataString
+
+        val message = when {
+            // Shared text, e.g. a place from Google Maps
+            intent.action == Intent.ACTION_SEND && fullText.isNotBlank() -> ShareParser.prepareSharedText(fullText, subject)
+            // A geo: link opened or "navigated to" with this app
+            dataString.startsWith("geo:") -> ShareParser.prepareGeoLink(dataString)
+            else -> null
         }
 
-        if (url.isNotBlank()) {
-            if (title.isBlank()) {
-                title = if (MapsUtils.isGoogleMapsLink(url) || url.startsWith("geo:")) "Location" else "Link"
-            }
-            performSendData(url, title)
-        } else if (fullText.isNotBlank()) {
-            performSendData(fullText, title.ifBlank { "Text Message" })
+        if (message != null) {
+            performSendData(message.data, message.title)
         } else {
             Toast.makeText(this, getString(R.string.no_data_error), Toast.LENGTH_SHORT).show()
             finish()

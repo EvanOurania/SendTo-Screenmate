@@ -16,8 +16,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 
 /** Outcome of a send attempt, with the message to show to the user. */
@@ -176,49 +174,5 @@ object MessageSender {
                 callGuard.cancel()
             }
         }
-    }
-
-    /** The first link (http, https or geo) in [text], or an empty string if there is none. */
-    fun extractUrl(text: String): String {
-        if (text.trim().startsWith("geo:", ignoreCase = true)) return text.trim()
-        val urlRegex = Regex("((https?://|geo:)[^\\s\\n\\r]+)")
-        val match = urlRegex.find(text)
-        return match?.value ?: ""
-    }
-
-    /** The place name or address in a geo: link (its q= parameter or its label), or an empty string. */
-    fun extractGeoLabel(geoUri: String): String {
-        try {
-            val qIndex = geoUri.indexOf("q=")
-            if (qIndex != -1) {
-                var value = geoUri.substring(qIndex + 2)
-                val endDelimiters = charArrayOf('&', '@', '#')
-                var firstDelimiter = -1
-                for (d in endDelimiters) {
-                    val idx = value.indexOf(d)
-                    if (idx != -1 && (firstDelimiter == -1 || idx < firstDelimiter)) firstDelimiter = idx
-                }
-                if (firstDelimiter != -1) value = value.substring(0, firstDelimiter)
-                val decoded = try {
-                    URLDecoder.decode(value, StandardCharsets.UTF_8.name()).trim()
-                } catch (_: Exception) {
-                    value.replace("%20", " ").replace("+", " ").trim()
-                }
-                val labelMatch = Regex("\\((.+)\\)").find(decoded)
-                if (labelMatch != null) return labelMatch.groupValues[1].trim()
-                return decoded
-            }
-            val labelRegex = Regex("\\(([^)]+)\\)")
-            val labelMatch = labelRegex.find(geoUri)
-            if (labelMatch != null) {
-                val value = labelMatch.groupValues[1]
-                return try {
-                    URLDecoder.decode(value, StandardCharsets.UTF_8.name()).trim()
-                } catch (_: Exception) {
-                    value.trim()
-                }
-            }
-        } catch (_: Exception) {}
-        return ""
     }
 }

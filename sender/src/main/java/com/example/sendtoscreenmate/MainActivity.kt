@@ -105,26 +105,8 @@ class MainActivity : ComponentActivity() {
 
     /** [onSent] runs only if the message was actually sent. */
     fun triggerManualSend(data: String, onSent: () -> Unit) {
-        val url = MessageSender.extractUrl(data)
-        var title = ""
-        var finalData = data
-
-        if (url.isNotBlank()) {
-            finalData = url
-            val textBeforeUrl = data.substringBefore(url).trim()
-            if (textBeforeUrl.isNotBlank()) {
-                title = textBeforeUrl.split("\n", "·", " - ").first().trim()
-            }
-            if (title.isBlank() && url.startsWith("geo:")) {
-                title = MessageSender.extractGeoLabel(url)
-            }
-            if (title.isBlank()) {
-                title = if (MapsUtils.isGoogleMapsLink(url) || url.startsWith("geo:")) "Location" else "Link"
-            }
-        } else {
-            title = "Text Message"
-        }
-        performSendData(finalData, title, onSent)
+        val message = ShareParser.prepareSharedText(data)
+        performSendData(message.data, message.title, onSent)
     }
 
     fun triggerAddressSend(data: String, onSent: () -> Unit) {

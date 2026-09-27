@@ -331,39 +331,12 @@ class NtfyListenerService : Service() {
 
                 // Tell the Sender the message arrived: it waits a few seconds for this, so skip
                 // old messages replayed after a reconnect
-                if (messageId.isNotEmpty() && (time <= 0 || latestServerTime - time <= DELIVERY_RECEIPT_MAX_AGE_SECONDS)) {
+                if (messageId.isNotEmpty() && IncomingMessage.isRecent(time, latestServerTime, DELIVERY_RECEIPT_MAX_AGE_SECONDS)) {
                     sendDeliveryReceipt(receiptUrl, messageId)
                 }
 
-                // Try to parse the message as JSON to get the title and URL
-                var displayTitle: String
-                var targetUrl: String
-
-                val messageToParse = decryptedMessage.trim()
-                if (messageToParse.startsWith("{") && messageToParse.endsWith("}")) {
-                    try {
-                        val msgJson = JSONObject(messageToParse)
-                        targetUrl = msgJson.optString("url")
-                        displayTitle = msgJson.optString("title")
-                    } catch (_: Exception) {
-                        targetUrl = decryptedMessage
-                        displayTitle = ""
-                    }
-                } else {
-                    targetUrl = decryptedMessage
-                    displayTitle = ""
-                }
-
-                if (targetUrl.isBlank()) return
-
-                // --- IMPROVED HISTORY TITLE EXTRACTION ---
-                // If title is blank or generic, try to extract it from the URL
-                val refinedTitle = if (displayTitle.isBlank() || displayTitle.lowercase() == "location") {
-                    val extracted = MapsUtils.extractPlaceName(targetUrl)
-                    extracted ?: displayTitle
-                } else {
-                    displayTitle
-                }
+                val message = IncomingMessage.parse(decryptedMessage) ?: return
+                val (targetUrl, displayTitle, refinedTitle, isMapsLink, rawMapsUrl, finalUrl) = message
 
                 // Add to history
                 serviceScope.launch {
@@ -371,23 +344,6 @@ class NtfyListenerService : Service() {
                     val historyTimestamp = if (time > 0) time * 1000 else System.currentTimeMillis()
                     historyRepo.addHistoryItem(refinedTitle, targetUrl, historyTimestamp)
                 }
-
-                // --- CRITICAL FIX 1 & 4: Detection & Correct URL passing ---
-                // Detect if there's a Google Maps link ANYWHERE in the DECRYPTED message
-                val isMapsLink = MapsUtils.isGoogleMapsLink(decryptedMessage)
-                
-                // Extract the cleanest possible URL for the Chooser
-                val rawMapsUrl = if (targetUrl.contains("http")) {
-                    targetUrl 
-                } else if (decryptedMessage.contains("http")) {
-                    // Extract link from text if it's not the primary URL field
-                    val match = Regex("https?://[^\\s\\n\\r]+").find(decryptedMessage)
-                    match?.value ?: targetUrl
-                } else {
-                    targetUrl
-                }
-
-                val finalUrl = MapsUtils.getGenericMapsUri(targetUrl)
 
                 // If it's a URL/Location, we process it normally.
                 // If it's plain text, we still process it if auto-copy is enabled.
@@ -401,8 +357,7 @@ class NtfyListenerService : Service() {
                     // After a reconnect the server replays the missed messages in a quick burst:
                     // only the newest one opens, and only if it is still recent. All of them
                     // are already in the history and the newest one stays in the notification.
-                    val isRecent = time <= 0 || latestServerTime - time <= MAX_AUTO_OPEN_AGE_SECONDS
-                    if (!isRecent) return
+                    if (!IncomingMessage.isRecent(time, latestServerTime, MAX_AUTO_OPEN_AGE_SECONDS)) return
                     pendingAutoOpen?.cancel()
                     pendingAutoOpen = serviceScope.launch {
                         delay(BURST_DEBOUNCE_MS)
@@ -414,61 +369,59 @@ class NtfyListenerService : Service() {
                         } else {
                             repository.autoOpenGeoApp.first()
                         }
-                        // Only locations go to the navigator; other links (web pages) open normally below
-                        val isLocation = isMapsLink || finalUrl.startsWith("geo:")
-
                         if (autoCopyEnabled) {
                             copyReceivedText(targetUrl)
                         }
 
-                        // THE SPLIT-SCREEN SAVER: If delay is 0, launch directly from Service.
-                        // This bypasses ChooserActivity task manipulation and keeps split-screen intact.
-                        if (isLocation && autoDelay == 0 && preferredApp != ReceiverRepository.APP_NONE) {
-                            // Build the final URI for direct launch
-                            val targetUri = if (preferredApp == ReceiverRepository.APP_WAZE) {
-                                MapsUtils.getWazeUriResolvingShortLink(rawMapsUrl, displayTitle)
-                            } else if (preferredApp == ReceiverRepository.APP_MAPS) {
-                                val coords = MapsUtils.extractCoordinates(rawMapsUrl)
-                                if (coords != null) "geo:$coords?q=$coords" else rawMapsUrl
-                            } else {
-                                finalUrl
-                            }
+                        when (message.openAction(autoDelay, preferredApp)) {
+                            // THE SPLIT-SCREEN SAVER: If delay is 0, launch directly from Service.
+                            // This bypasses ChooserActivity task manipulation and keeps split-screen intact.
+                            OpenAction.NAVIGATOR -> {
+                                // Build the final URI for direct launch
+                                val targetUri = if (preferredApp == ReceiverRepository.APP_WAZE) {
+                                    MapsUtils.getWazeUriResolvingShortLink(rawMapsUrl, displayTitle)
+                                } else if (preferredApp == ReceiverRepository.APP_MAPS) {
+                                    val coords = MapsUtils.extractCoordinates(rawMapsUrl)
+                                    if (coords != null) "geo:$coords?q=$coords" else rawMapsUrl
+                                } else {
+                                    finalUrl
+                                }
 
-                            // Target the chosen app explicitly, otherwise a geo: link may open in another navigator
-                            val targetPackage = when (preferredApp) {
-                                ReceiverRepository.APP_MAPS -> "com.google.android.apps.maps"
-                                ReceiverRepository.APP_WAZE -> "com.waze"
-                                else -> null
-                            }
-                            val directIntent = Intent(Intent.ACTION_VIEW, targetUri.toUri()).apply {
-                                // MINIMAL FLAGS: NEW_TASK is required from service, SINGLE_TOP preserves the split-screen activity
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                                setPackage(targetPackage)
-                            }
-                            try {
-                                startActivity(directIntent)
-                            } catch (_: Exception) {
-                                // Chosen app not installed: let Android pick one, like ChooserActivity does
-                                if (targetPackage != null) {
-                                    try {
-                                        startActivity(directIntent.setPackage(null))
-                                    } catch (_: Exception) {}
+                                // Target the chosen app explicitly, otherwise a geo: link may open in another navigator
+                                val targetPackage = when (preferredApp) {
+                                    ReceiverRepository.APP_MAPS -> "com.google.android.apps.maps"
+                                    ReceiverRepository.APP_WAZE -> "com.waze"
+                                    else -> null
+                                }
+                                val directIntent = Intent(Intent.ACTION_VIEW, targetUri.toUri()).apply {
+                                    // MINIMAL FLAGS: NEW_TASK is required from service, SINGLE_TOP preserves the split-screen activity
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                                    setPackage(targetPackage)
+                                }
+                                try {
+                                    startActivity(directIntent)
+                                } catch (_: Exception) {
+                                    // Chosen app not installed: let Android pick one, like ChooserActivity does
+                                    if (targetPackage != null) {
+                                        try {
+                                            startActivity(directIntent.setPackage(null))
+                                        } catch (_: Exception) {}
+                                    }
                                 }
                             }
-                            return@launch
-                        }
 
-                        if (isLocation) {
                             // For locations with delay, use ChooserActivity
-                            val intent = Intent(this@NtfyListenerService, ChooserActivity::class.java).apply {
-                                // Minimalist flags are safer for split-screen
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                putExtra("url", rawMapsUrl) 
-                                putExtra("title", displayTitle)
+                            OpenAction.CHOOSER -> {
+                                val intent = Intent(this@NtfyListenerService, ChooserActivity::class.java).apply {
+                                    // Minimalist flags are safer for split-screen
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    putExtra("url", rawMapsUrl) 
+                                    putExtra("title", displayTitle)
+                                }
+                                startActivity(intent)
                             }
-                            startActivity(intent)
-                        } else {
-                            openUrl(finalUrl)
+
+                            OpenAction.DEFAULT_APP -> openUrl(finalUrl)
                         }
                     }
                 }
