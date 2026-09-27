@@ -61,6 +61,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -673,13 +674,13 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
                                 Text(stringResource(R.string.auto_open_delay_label, autoOpenDelay), style = MaterialTheme.typography.bodyLarge)
                                 Slider(
                                     value = autoOpenDelay.toFloat(),
-                                    onValueChange = { 
-                                        val newVal = it.toInt()
-                                        autoOpenDelay = newVal
-                                        scope.launch { repository.saveAutoOpenDelay(newVal) }
+                                    onValueChange = { autoOpenDelay = it.roundToInt() },
+                                    // Save once when the finger is lifted, not on every drag movement
+                                    onValueChangeFinished = {
+                                        scope.launch { repository.saveAutoOpenDelay(autoOpenDelay) }
                                     },
                                     valueRange = 0f..30f,
-                                    steps = 30
+                                    steps = 29 // 29 stops between the ends = one per second
                                 )
 
                                 HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
