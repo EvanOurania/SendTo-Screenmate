@@ -65,5 +65,18 @@ This project consists of two separate applications: **Sender** (SendTo ScreenMat
 - **QR Engine:** ZXing (Pure Java/Kotlin implementation for 16KB alignment compatibility)
 - **Architecture:** Clean MVVM with DataStore for persistent settings.
 
+## 🚢 Releasing
+Every push runs the unit tests and lint on GitHub Actions (`.github/workflows/build.yml`). Pushing a tag that starts with `v` also builds both APKs, signs them and publishes them as a GitHub release.
+
+**One-time setup:** in the repository go to *Settings → Secrets and variables → Actions* and add these secrets. Use the same keystore as the previous releases, otherwise the new APKs can't be installed over the old ones.
+- `SIGNING_KEYSTORE_BASE64`: the keystore file encoded in Base64 (on macOS: `base64 -i my-keystore.jks | pbcopy`)
+- `SIGNING_STORE_PASSWORD`: the keystore password
+- `SIGNING_KEY_ALIAS`: the key alias
+- `SIGNING_KEY_PASSWORD`: the key password
+
+**For each release:**
+1. Increase `versionCode` and `versionName` in `receiver/build.gradle.kts` and `sender/build.gradle.kts`, then commit.
+2. Tag and push: `git tag v1.2.0 && git push origin main v1.2.0`
+
 ---
 *Created with ❤️ by AI for a seamless Android experience.*
