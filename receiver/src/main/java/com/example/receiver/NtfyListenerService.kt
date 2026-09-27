@@ -402,10 +402,12 @@ class NtfyListenerService : Service() {
                         } else {
                             repository.autoOpenGeoApp.first()
                         }
+                        // Only locations go to the navigator; other links (web pages) open normally below
+                        val isLocation = isMapsLink || finalUrl.startsWith("geo:")
 
                         // THE SPLIT-SCREEN SAVER: If delay is 0, launch directly from Service.
                         // This bypasses ChooserActivity task manipulation and keeps split-screen intact.
-                        if (autoDelay == 0 && preferredApp != ReceiverRepository.APP_NONE && finalUrl.isNotBlank()) {
+                        if (isLocation && autoDelay == 0 && preferredApp != ReceiverRepository.APP_NONE) {
                             // Still handle auto-copy if enabled
                             if (autoCopyEnabled) {
                                 val intent = Intent(this@NtfyListenerService, ChooserActivity::class.java).apply {
@@ -451,7 +453,7 @@ class NtfyListenerService : Service() {
                             return@launch
                         }
 
-                        if (finalUrl.isNotBlank() && (isMapsLink || finalUrl.startsWith("geo:"))) {
+                        if (isLocation) {
                             // For locations with delay, use ChooserActivity
                             val intent = Intent(this@NtfyListenerService, ChooserActivity::class.java).apply {
                                 // Minimalist flags are safer for split-screen
