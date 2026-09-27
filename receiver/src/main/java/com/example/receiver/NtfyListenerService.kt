@@ -85,16 +85,10 @@ class NtfyListenerService : Service() {
             ACTION_RESTART -> {
                 closeNotificationPanel()
                 Toast.makeText(this, getString(R.string.toast_restarted), Toast.LENGTH_SHORT).show()
-                // Reset last received info to force the notification to show "restarting" status
-                lastReceivedUrl = null
-                lastReceivedTitle = null
                 
-                // Show "Restarting..." then start listening
-                serviceScope.launch {
-                    updateNotification(getString(R.string.notification_restarting))
-                    delay(1500) // Give the user time to read the "Restarting" state
-                    startListening()
-                }
+                // Show "Restarting..." then start listening immediately
+                updateNotification(getString(R.string.notification_restarting))
+                startListening()
                 return START_STICKY
             }
         }
@@ -420,11 +414,9 @@ class NtfyListenerService : Service() {
             getString(R.string.notification_title)
         }
         
-        val notificationContent = if (isSpecialStatus) {
-            getString(R.string.notification_active) // Fallback text underneath the special title
-        } else if (!lastReceivedTitle.isNullOrBlank()) {
+        val notificationContent = if (!lastReceivedTitle.isNullOrBlank()) {
             lastReceivedTitle!!
-        } else if (content.isNotBlank()) {
+        } else if (!isSpecialStatus && content.isNotBlank()) {
             content
         } else {
             getString(R.string.notification_active)
