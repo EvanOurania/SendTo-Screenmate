@@ -2,10 +2,7 @@
 <resources>
     <string name="app_name">SendTo ScreenMate</string>
     <string name="settings_title">Sending Settings</string>
-    <string name="select_service">Select service:</string>
-    <string name="macrodroid_config">MacroDroid Configuration</string>
     <string name="webhook_url_label">Webhook URL</string>
-    <string name="save_macrodroid">Save MacroDroid</string>
     <string name="macrodroid_instructions"><![CDATA[<b>Setup Instructions:</b><br><br>
 1. On the <b>ScreenMate Receiver</b> device, install <b>MacroDroid</b> and create a new Macro.<br><br>
 2. Add a <b>Trigger</b>: \"Connectivity\" -> \"Web Hook (HTTP)\". Choose an ID (e.g. \"nav\").<br><br>
@@ -14,18 +11,14 @@
 5. Add an <b>Action</b>: \"Device Actions\" -> \"Send Intent\".<br><br>
 6. Configure Intent: Action: <b>android.intent.action.VIEW</b>, Data: <b>{lv=value}</b>, Target: <b>Activity</b>.]]></string>
 
-    <string name="ntfy_config">ntfy.sh Configuration</string>
     <string name="ntfy_server_label">Server (e.g., https://ntfy.sh)</string>
     <string name="ntfy_topic_label">Topic</string>
-    <string name="save_ntfy">Save ntfy</string>
     <string name="ntfy_instructions"><![CDATA[<b>Pairing Steps:</b><br><br>
 1. On the <b>ScreenMate Receiver</b> device, click \"Generate Topic and Key\".<br><br>
 2. On this device, click <b>\"Scan Receiver QR\"</b> and point at the code on the Receiver screen.<br><br>
 3. The apps will pair instantly with E2E encryption support.]]></string>
 
     <string name="sending_progress">Sending…</string>
-    <string name="sent_macrodroid">Sent to Screenmate!</string>
-    <string name="error_macrodroid">Error sending to Screenmate</string>
     <string name="sent_ntfy">Sent to Screenmate!</string>
     <string name="error_ntfy">Error sending to Screenmate</string>
     <string name="no_data_error">No data found to send</string>
@@ -33,11 +26,9 @@
     <string name="service_ntfy_default">ntfy.sh (default)</string>
     <string name="invalid_topic_error">Set a valid topic in Settings (letters, numbers, - and _) or scan the Receiver QR code</string>
     <string name="missing_key_error">Encryption is on but no key is set: scan the Receiver QR code</string>
-    <string name="save_success_macrodroid">URL saved!</string>
     <string name="save_success_ntfy">ntfy config saved!</string>
     <string name="encryption_label">End-to-End Encryption</string>
     <string name="char_limit_label">%1$d / 3000</string>
-    <string name="manual_send_label">Manual Send</string>
     <string name="manual_send_hint">Paste link or text here</string>
     <string name="char_limit_exceeded">Text is too long (max 3000 chars)</string>
     <string name="btn_send">Send Text/Link</string>

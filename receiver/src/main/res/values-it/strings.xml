@@ -2,7 +2,6 @@
 <resources>
     <string name="app_name">Receiver</string>
     <string name="settings_title">Impostazioni Ricevitore</string>
-    <string name="ntfy_config">Configurazione ntfy.sh</string>
     <string name="ntfy_server_label">Server (es. https://ntfy.sh)</string>
     <string name="ntfy_topic_label">Topic (Argomento)</string>
     <string name="stop_ntfy">Interrompi Ascolto</string>
@@ -46,13 +45,10 @@
     <string name="notification_message_rejected">Messaggio ignorato: chiave di cifratura errata</string>
     <string name="service_running">Il servizio è in esecuzione</string>
     <string name="service_not_running">Il servizio NON è in esecuzione</string>
-    <string name="encryption_label">Crittografia End-to-End</string>
-    <string name="encryption_note">Nota: Il mittente decide se criptare i messaggi tramite ntfy.</string>
     <string name="copy_to_clipboard">Copia automatica negli appunti</string>
     <string name="copy_note">Copia automaticamente il testo ricevuto negli appunti</string>
     <string name="section_permissions">Permessi</string>
     <string name="section_pairing">Accoppiamento e Connessione</string>
-    <string name="section_configuration">Configurazione ntfy.sh</string>
     <string name="section_instructions">Istruzioni</string>
     <string name="section_history">Cronologia</string>
     <string name="btn_clear_history">Cancella Cronologia</string>
@@ -72,7 +68,6 @@
     <string name="app_maps">Google Maps</string>
     <string name="app_waze">Waze</string>
     <string name="app_other">Altra App</string>
-    <string name="app_browser">Browser Web</string>
     <string name="btn_copy">Copia</string>
     <string name="pref_notification_buttons">Pulsanti della Notifica</string>
     <string name="pref_show_restart">Mostra pulsante Riavvia</string>

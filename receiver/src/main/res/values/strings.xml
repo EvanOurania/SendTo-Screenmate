@@ -2,7 +2,6 @@
 <resources>
     <string name="app_name">ScreenMate Receiver</string>
     <string name="settings_title">Receiver Settings</string>
-    <string name="ntfy_config">ntfy.sh Configuration</string>
     <string name="ntfy_server_label">Server (e.g., https://ntfy.sh)</string>
     <string name="ntfy_topic_label">Topic</string>
     <string name="stop_ntfy">Stop Listening</string>
@@ -46,13 +45,10 @@
     <string name="notification_message_rejected">Message ignored: wrong encryption key</string>
     <string name="service_running">Service is running</string>
     <string name="service_not_running">Service is NOT running</string>
-    <string name="encryption_label">End-to-End Encryption</string>
-    <string name="encryption_note">Note: Sender decides if messages are encrypted via ntfy.</string>
     <string name="copy_to_clipboard">Auto-copy to clipboard</string>
     <string name="copy_note">Automatically copy received text to clipboard</string>
     <string name="section_permissions">Permissions</string>
     <string name="section_pairing">Pairing &amp; Connection</string>
-    <string name="section_configuration">ntfy.sh Configuration</string>
     <string name="section_instructions">Instructions</string>
     <string name="section_history">History</string>
     <string name="btn_clear_history">Clear History</string>
@@ -72,7 +68,6 @@
     <string name="app_maps">Google Maps</string>
     <string name="app_waze">Waze</string>
     <string name="app_other">Other App</string>
-    <string name="app_browser">Web Browser</string>
     <string name="btn_copy">Copy</string>
     <string name="pref_notification_buttons">Notification Buttons</string>
     <string name="pref_show_restart">Show Restart Button</string>

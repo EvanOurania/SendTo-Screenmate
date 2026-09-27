@@ -35,7 +35,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import android.net.Uri
 import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
