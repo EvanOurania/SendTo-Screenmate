@@ -24,6 +24,12 @@ object MapsUtils {
     private val AT_COORDS = Regex("@([-+]?\\d+\\.\\d+),([-+]?\\d+\\.\\d+)")
     private val LOC_COORDS = Regex("loc:([-+]?\\d+\\.\\d+)\\+([-+]?\\d+\\.\\d+)")
     private val GENERIC_COORDS = Regex("([-+]?\\d+\\.\\d+)\\s*,\\s*([-+]?\\d+\\.\\d+)")
+
+    // --- Directions ---
+    private const val DIRECTIONS_PATH = "/maps/dir/"
+    // maps/dir/?api=1&destination=... and the older maps?saddr=...&daddr=...
+    private val DESTINATION_PARAM = Regex("[?&](?:destination|daddr)=([^&#]+)")
+    private val COORDS_ONLY = Regex("^([-+]?\\d+(?:\\.\\d+)?)\\s*,\\s*([-+]?\\d+(?:\\.\\d+)?)$")
     
     // --- Metadata & Misc ---
     private val PLACE_NAME_REGEX = Regex("/maps/place/([^/]+)")
@@ -62,16 +68,60 @@ object MapsUtils {
     }
 
     /**
-     * Like [getWazeUri], but first expands Google Maps short links so Waze gets the exact
-     * coordinates. Falls back to the original link when that doesn't yield any coordinates.
+     * Like [getWazeUri], but first expands Google Maps short links so Waze gets the exact destination.
+     * Falls back to the original link when the expanded one contains neither coordinates nor a route.
      */
     suspend fun getWazeUriResolvingShortLink(url: String, title: String): String {
         val resolvedUrl = withContext(Dispatchers.IO) { resolveShortLink(url) }
-        return if (resolvedUrl != url && extractCoordinates(resolvedUrl) != null) {
-            getWazeUri(resolvedUrl, title)
-        } else {
-            getWazeUri(url, title)
+        val isUsable = resolvedUrl != url &&
+            (extractDirectionsDestination(resolvedUrl) != null || extractCoordinates(resolvedUrl) != null)
+        return getWazeUri(if (isUsable) resolvedUrl else url, title)
+    }
+
+    /**
+     * The destination of a Google Maps directions link: its coordinates ("lat,lon") when they can
+     * be identified with certainty, otherwise its name/address. Null if [url] isn't a directions link.
+     */
+    fun extractDirectionsDestination(url: String): String? {
+        DESTINATION_PARAM.find(url)?.let { match ->
+            // Old multi-stop links look like daddr=Stop+to:Destination
+            val destination = decode(match.groupValues[1]).substringAfterLast("to:").trim()
+            return coordinatesOnly(destination) ?: destination.ifEmpty { null }
         }
+
+        val dirIndex = url.indexOf(DIRECTIONS_PATH)
+        if (dirIndex == -1) return null
+
+        // maps/dir/<start>/<stop>/.../<destination>/@<map center>/data=<route details>
+        // (split before decoding: an address may contain an encoded "/")
+        val stops = url.substring(dirIndex + DIRECTIONS_PATH.length)
+            .substringBefore('?')
+            .split('/')
+            .takeWhile { !it.startsWith("@") && !it.startsWith("data=") }
+            .map { decode(it).trim() }
+        val destination = stops.lastOrNull { it.isNotEmpty() } ?: return null
+        coordinatesOnly(destination)?.let { return it }
+
+        // The route details list one coordinate pair per named stop, in route order. Only when
+        // every named stop has its pair is the last pair surely the destination's.
+        val routeDetails = decode(url.substringAfter("/data=", ""))
+        val lons = GOOGLE_WAYPOINT_LON.findAll(routeDetails).toList()
+        val lats = GOOGLE_WAYPOINT_LAT.findAll(routeDetails).toList()
+        val namedStops = stops.count { it.isNotEmpty() }
+        if (lons.isNotEmpty() && lons.size == lats.size && lons.size == namedStops) {
+            return "${lats.last().groupValues[1]},${lons.last().groupValues[1]}"
+        }
+        return destination
+    }
+
+    /** "lat,lon" if [text] consists of coordinates only (spaces removed), otherwise null. */
+    private fun coordinatesOnly(text: String): String? =
+        COORDS_ONLY.find(text)?.let { "${it.groupValues[1]},${it.groupValues[2]}" }
+
+    private fun decode(text: String): String = try {
+        URLDecoder.decode(text, StandardCharsets.UTF_8.toString())
+    } catch (_: Exception) {
+        text
     }
 
     /**
@@ -166,6 +216,16 @@ object MapsUtils {
      * Formats a Waze-specific URI, including place name as a label if available.
      */
     fun getWazeUri(url: String, title: String): String {
+        // Routes: navigate to the destination only. The map center (@...) lies somewhere along the
+        // route and the shared title may name another stop, so neither of them is used here.
+        extractDirectionsDestination(url)?.let { destination ->
+            return if (COORDS_ONLY.matches(destination)) {
+                "waze://?ll=$destination&navigate=yes"
+            } else {
+                "waze://?q=${URLEncoder.encode(destination, StandardCharsets.UTF_8.toString())}&navigate=yes"
+            }
+        }
+
         val coords = extractCoordinates(url) ?: extractCoordinatesFromTitle(title)
         val placeName = extractPlaceName(url) ?: if (!isDroppedPinTitle(title)) title else null
         
