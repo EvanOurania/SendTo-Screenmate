@@ -407,9 +407,6 @@ fun SendScreen(navigationPadding: PaddingValues) {
 @Composable
 fun SettingsScreen(repository: WebhookRepository, navigationPadding: PaddingValues) {
     val currentService by repository.serviceType.collectAsState(initial = WebhookRepository.SERVICE_NTFY)
-    val savedMacroDroidUrl by repository.webhookUrl.collectAsState(initial = WebhookRepository.DEFAULT_URL)
-    val savedNtfyServer by repository.ntfyServer.collectAsState(initial = WebhookRepository.DEFAULT_NTFY_SERVER)
-    val savedNtfyTopic by repository.ntfyTopic.collectAsState(initial = "")
     val savedEncryptionEnabled by repository.encryptionEnabled.collectAsState(initial = true)
 
     var macroDroidUrl by remember { mutableStateOf("") }
@@ -421,10 +418,14 @@ fun SettingsScreen(repository: WebhookRepository, navigationPadding: PaddingValu
     val context = LocalContext.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-    LaunchedEffect(savedMacroDroidUrl, savedNtfyServer, savedNtfyTopic, savedEncryptionEnabled) {
-        macroDroidUrl = savedMacroDroidUrl
-        ntfyServer = savedNtfyServer
-        ntfyTopic = savedNtfyTopic
+    // Fill the text fields from storage only once: re-filling them after every save would
+    // overwrite what the user is still typing (lost characters, jumping cursor)
+    LaunchedEffect(Unit) {
+        macroDroidUrl = repository.webhookUrl.first()
+        ntfyServer = repository.ntfyServer.first()
+        ntfyTopic = repository.ntfyTopic.first()
+    }
+    LaunchedEffect(savedEncryptionEnabled) {
         encryptionEnabled = savedEncryptionEnabled
     }
 

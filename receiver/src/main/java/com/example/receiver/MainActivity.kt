@@ -316,18 +316,21 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
     val savedAutoOpenMapsApp by repository.autoOpenMapsApp.collectAsState(initial = ReceiverRepository.APP_NONE)
     val savedAutoOpenGeoApp by repository.autoOpenGeoApp.collectAsState(initial = ReceiverRepository.APP_NONE)
     
+    var textFieldsLoaded by remember { mutableStateOf(false) }
+
     // THE MASTER FIX: Data is ready only when all essential flows have emitted at least once
     val isSettingsReady = savedTopicNullable != null && savedServerNullable != null && 
-                         savedKeyNullable != null && savedAutoOpenDelayNullable != null && isServiceRunning != null
+                         savedKeyNullable != null && savedAutoOpenDelayNullable != null && isServiceRunning != null &&
+                         textFieldsLoaded
 
     val savedTopic = savedTopicNullable ?: ""
     val savedServer = savedServerNullable ?: "https://ntfy.sh"
     val savedKey = savedKeyNullable ?: ""
     val savedAutoOpenDelay = savedAutoOpenDelayNullable ?: 5
 
-    var topic by remember(savedTopic) { mutableStateOf(savedTopic) }
-    var server by remember(savedServer) { mutableStateOf(savedServer) }
-    var secretKey by remember(savedKey) { mutableStateOf(savedKey) }
+    var topic by remember { mutableStateOf("") }
+    var server by remember { mutableStateOf("") }
+    var secretKey by remember { mutableStateOf("") }
     var copyToClipboard by remember { mutableStateOf(false) }
     var showRestartButton by remember { mutableStateOf(true) }
     var showStopButton by remember { mutableStateOf(true) }
@@ -336,9 +339,17 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
     var autoOpenGeoApp by remember { mutableStateOf(ReceiverRepository.APP_NONE) }
     var autoOpenDelay by remember { mutableIntStateOf(5) }
     
-    LaunchedEffect(savedTopic) { topic = savedTopic }
-    LaunchedEffect(savedServer) { server = savedServer }
-    LaunchedEffect(savedKey) { secretKey = savedKey }
+    // Fill the text fields from storage only once: re-filling them after every save would
+    // overwrite what the user is still typing (lost characters, jumping cursor)
+    val storedTextLoaded = savedTopicNullable != null && savedServerNullable != null && savedKeyNullable != null
+    LaunchedEffect(storedTextLoaded) {
+        if (storedTextLoaded && !textFieldsLoaded) {
+            topic = savedTopic
+            server = savedServer
+            secretKey = savedKey
+            textFieldsLoaded = true
+        }
+    }
     LaunchedEffect(savedCopyToClipboard) { copyToClipboard = savedCopyToClipboard }
     LaunchedEffect(savedShowRestart) { showRestartButton = savedShowRestart }
     LaunchedEffect(savedShowStop) { showStopButton = savedShowStop }
