@@ -29,6 +29,8 @@
     <string name="sent_ntfy">Sent to Screenmate!</string>
     <string name="error_ntfy">Error sending to Screenmate</string>
     <string name="no_data_error">No data found to send</string>
+    <string name="paste">Paste</string>
+    <string name="service_ntfy_default">ntfy.sh (default)</string>
     <string name="invalid_topic_error">Set a valid topic in Settings (letters, numbers, - and _) or scan the Receiver QR code</string>
     <string name="missing_key_error">Encryption is on but no key is set: scan the Receiver QR code</string>
     <string name="save_success_macrodroid">URL saved!</string>

@@ -161,7 +161,7 @@ class NtfyListenerService : Service() {
                 Toast.makeText(this, getString(R.string.toast_restarted), Toast.LENGTH_SHORT).show()
                 
                 // Show "Restarting..." then start listening immediately
-                updateNotification(getString(R.string.notification_restarting))
+                updateNotification(getString(R.string.notification_restarting), isStatus = true)
                 startListening()
                 return START_STICKY
             }
@@ -199,11 +199,11 @@ class NtfyListenerService : Service() {
             }
 
             if (topic.isBlank()) {
-                updateNotification(getString(R.string.notification_topic_not_set))
+                updateNotification(getString(R.string.notification_topic_not_set), isStatus = true)
                 return@launch
             }
             if (!ReceiverRepository.isValidTopic(topic)) {
-                updateNotification(getString(R.string.notification_topic_invalid))
+                updateNotification(getString(R.string.notification_topic_invalid), isStatus = true)
                 return@launch
             }
 
@@ -237,7 +237,7 @@ class NtfyListenerService : Service() {
                         call.execute().use { response ->
                             if (!response.isSuccessful) {
                                 Log.e("NtfyListener", "HTTP Error: ${response.code}")
-                                updateNotification("Error: ${response.code}")
+                                updateNotification(getString(R.string.notification_server_error, response.code), isStatus = true)
                                 delay(10000)
                                 return@use
                             }
@@ -265,7 +265,7 @@ class NtfyListenerService : Service() {
                 } catch (e: Exception) {
                     Log.e("NtfyListener", "Exception in connection loop", e)
                     if (isActive) {
-                        updateNotification(getString(R.string.notification_conn_lost))
+                        updateNotification(getString(R.string.notification_conn_lost), isStatus = true)
                         waitBeforeReconnect(retryDelayMs)
                         // Space out retries while the server stays unreachable, to save battery
                         retryDelayMs = (retryDelayMs * 2).coerceAtMost(MAX_RETRY_DELAY_MS)
@@ -310,7 +310,7 @@ class NtfyListenerService : Service() {
                         if (CryptoManager.looksEncrypted(rawMessage)) {
                             // Encrypted with a different key: its content is unreadable, don't try to open it
                             Log.w("NtfyListener", "Ignoring message encrypted with a different secret key")
-                            updateNotification(getString(R.string.notification_message_rejected))
+                            updateNotification(getString(R.string.notification_message_rejected), isStatus = true)
                             return
                         }
                         // Sent in plain text (encryption turned off in the Sender)
@@ -501,7 +501,7 @@ class NtfyListenerService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Ntfy Listener Service",
+                getString(R.string.notification_channel_name),
                 NotificationManager.IMPORTANCE_DEFAULT,
             )
             val manager = getSystemService(NotificationManager::class.java)
@@ -509,7 +509,8 @@ class NtfyListenerService : Service() {
         }
     }
 
-    private fun createNotification(content: String): Notification {
+    /** [isStatus]: [content] reports a problem or state change and is shown as the title. */
+    private fun createNotification(content: String, isStatus: Boolean = false): Notification {
         val stopIntent = Intent(this, NtfyListenerService::class.java).apply {
             action = ACTION_STOP
         }
@@ -529,14 +530,8 @@ class NtfyListenerService : Service() {
             this, 0, mainIntent, PendingIntent.FLAG_IMMUTABLE
         )
 
-        // THE FIX: Title is now static "In ascolto", Content shows the last link name
-        val isSpecialStatus = content == getString(R.string.notification_restarting) ||
-            content == getString(R.string.notification_conn_lost) ||
-            content == getString(R.string.notification_message_rejected) ||
-            content == getString(R.string.notification_topic_not_set) ||
-            content == getString(R.string.notification_topic_invalid)
-        
-        val notificationTitle = if (isSpecialStatus) {
+        // Title: "Listening", or the status when there is a problem. Content: the last link name
+        val notificationTitle = if (isStatus) {
             content
         } else {
             getString(R.string.notification_title)
@@ -544,7 +539,7 @@ class NtfyListenerService : Service() {
         
         val notificationContent = if (!lastReceivedTitle.isNullOrBlank()) {
             lastReceivedTitle!!
-        } else if (!isSpecialStatus && content.isNotBlank()) {
+        } else if (!isStatus && content.isNotBlank()) {
             content
         } else {
             getString(R.string.notification_active)
@@ -593,8 +588,8 @@ class NtfyListenerService : Service() {
         return builder.build()
     }
 
-    private fun updateNotification(content: String) {
-        val notification = createNotification(content)
+    private fun updateNotification(content: String, isStatus: Boolean = false) {
+        val notification = createNotification(content, isStatus)
         val manager = getSystemService(NotificationManager::class.java)
         manager.notify(NOTIFICATION_ID, notification)
     }

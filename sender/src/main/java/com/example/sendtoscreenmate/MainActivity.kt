@@ -234,7 +234,7 @@ fun SendScreen(navigationPadding: PaddingValues) {
                             }) {
                                 Icon(
                                     imageVector = Icons.Default.ContentPaste,
-                                    contentDescription = "Paste"
+                                    contentDescription = stringResource(R.string.paste)
                                 )
                             }
                         },
@@ -342,7 +342,7 @@ fun SettingsScreen(repository: WebhookRepository, navigationPadding: PaddingValu
             SettingsGroupCard {
                 Column(modifier = Modifier.padding(vertical = 8.dp)) {
                     ServiceSelectionRow(
-                        label = "ntfy.sh (Default)",
+                        label = stringResource(R.string.service_ntfy_default),
                         selected = currentService == WebhookRepository.SERVICE_NTFY,
                         onClick = { scope.launch { repository.saveServiceType(WebhookRepository.SERVICE_NTFY) } }
                     )

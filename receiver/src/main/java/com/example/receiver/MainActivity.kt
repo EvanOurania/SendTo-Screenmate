@@ -153,7 +153,7 @@ fun HistoryScreen(navigationPadding: PaddingValues) {
                 actions = {
                     if (historyItems.isNotEmpty()) {
                         IconButton(onClick = { showClearConfirm = true }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Clear History")
+                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.btn_clear_history))
                         }
                     }
                 },
@@ -236,7 +236,7 @@ fun HistoryItemCard(item: HistoryItem, onClick: () -> Unit) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    text = item.title.ifBlank { "Location/Link" },
+                    text = item.title.ifBlank { stringResource(R.string.history_untitled) },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
@@ -637,7 +637,7 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
                                         ) {
                                             Image(
                                                 bitmap = qrBitmap.asImageBitmap(),
-                                                contentDescription = "QR Code",
+                                                contentDescription = stringResource(R.string.qr_instructions),
                                                 modifier = Modifier.size(200.dp)
                                             )
                                             Spacer(modifier = Modifier.height(16.dp))

@@ -37,6 +37,10 @@
     <string name="notification_listening">In ascolto su %1$s tramite %2$s</string>
     <string name="notification_conn_lost">Connessione persa. Nuovo tentativo…</string>
     <string name="notification_start">Avvio ascolto…</string>
+    <string name="notification_server_error">Errore del server (%1$d)</string>
+    <string name="notification_channel_name">Servizio di ascolto</string>
+    <string name="error_opening_link">Impossibile aprire il link</string>
+    <string name="history_untitled">Posizione/Link</string>
     <string name="notification_message_rejected">Messaggio ignorato: chiave di cifratura errata</string>
     <string name="service_running">Il servizio è in esecuzione</string>
     <string name="service_not_running">Il servizio NON è in esecuzione</string>

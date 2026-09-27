@@ -136,7 +136,7 @@ class ChooserActivity : ComponentActivity() {
             if (packageName != null) {
                 openWithPackage(uri, null)
             } else {
-                Toast.makeText(this, "Error opening link", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.error_opening_link, Toast.LENGTH_SHORT).show()
             }
         }
     }
