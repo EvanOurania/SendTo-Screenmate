@@ -72,18 +72,8 @@ import androidx.lifecycle.lifecycleScope
 import com.example.sendtoscreenmate.ui.theme.SendToScreenMateTheme
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
 
 class MainActivity : ComponentActivity() {
 
@@ -115,7 +105,7 @@ class MainActivity : ComponentActivity() {
 
     /** [onSent] runs only if the message was actually delivered. */
     fun triggerManualSend(data: String, onSent: () -> Unit) {
-        val url = extractUrl(data)
+        val url = MessageSender.extractUrl(data)
         var title = ""
         var finalData = data
 
@@ -126,7 +116,7 @@ class MainActivity : ComponentActivity() {
                 title = textBeforeUrl.split("\n", "·", " - ").first().trim()
             }
             if (title.isBlank() && url.startsWith("geo:")) {
-                title = extractGeoLabel(url)
+                title = MessageSender.extractGeoLabel(url)
             }
             if (title.isBlank()) {
                 title = if (MapsUtils.isGoogleMapsLink(url) || url.startsWith("geo:")) "Location" else "Link"
@@ -150,120 +140,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun performSendData(data: String, title: String, onSent: () -> Unit) {
-        val json = JSONObject().apply {
-            put("url", data)
-            put("title", title)
-        }
-        val finalPayload = json.toString()
-        if (finalPayload.length > 3000) {
-            Toast.makeText(this, R.string.char_limit_exceeded, Toast.LENGTH_LONG).show()
-            return
-        }
         lifecycleScope.launch {
-            val serviceType = repository.serviceType.first()
-            if (serviceType == WebhookRepository.SERVICE_MACRODROID) {
-                val webhookUrl = repository.webhookUrl.first()
-                sendToMacroDroid(webhookUrl, data, onSent)
-            } else {
-                val server = repository.ntfyServer.first()
-                val topic = repository.ntfyTopic.first()
-                val secretKey = repository.secretKey.first()
-                val encryptionActive = repository.encryptionEnabled.first()
-                sendToNtfy(server, topic, secretKey, encryptionActive, finalPayload, onSent)
-            }
-        }
-    }
-
-    private fun extractUrl(text: String): String {
-        if (text.trim().startsWith("geo:", ignoreCase = true)) return text.trim()
-        val urlRegex = Regex("((https?://|geo:)[^\\s\\n\\r]+)")
-        val match = urlRegex.find(text)
-        return match?.value ?: ""
-    }
-
-    private fun extractGeoLabel(geoUri: String): String {
-        try {
-            val qIndex = geoUri.indexOf("q=")
-            if (qIndex != -1) {
-                var value = geoUri.substring(qIndex + 2)
-                val endDelimiters = charArrayOf('&', '@', '#')
-                var firstDelimiter = -1
-                for (d in endDelimiters) {
-                    val idx = value.indexOf(d)
-                    if (idx != -1 && (firstDelimiter == -1 || idx < firstDelimiter)) firstDelimiter = idx
-                }
-                if (firstDelimiter != -1) value = value.substring(0, firstDelimiter)
-                val decoded = try {
-                    URLDecoder.decode(value, StandardCharsets.UTF_8.name()).trim()
-                } catch (_: Exception) {
-                    value.replace("%20", " ").replace("+", " ").trim()
-                }
-                val labelMatch = Regex("\\((.+)\\)").find(decoded)
-                if (labelMatch != null) return labelMatch.groupValues[1].trim()
-                return decoded
-            }
-            val labelRegex = Regex("\\(([^)]+)\\)")
-            val labelMatch = labelRegex.find(geoUri)
-            if (labelMatch != null) {
-                val value = labelMatch.groupValues[1]
-                return try {
-                    URLDecoder.decode(value, StandardCharsets.UTF_8.name()).trim()
-                } catch (_: Exception) {
-                    value.trim()
-                }
-            }
-        } catch (_: Exception) {}
-        return ""
-    }
-
-    private fun sendToMacroDroid(webhookUrl: String, text: String, onSent: () -> Unit) {
-        lifecycleScope.launch {
-            val success = withContext(Dispatchers.IO) {
-                try {
-                    val client = OkHttpClient()
-                    val url = webhookUrl.toHttpUrlOrNull()?.newBuilder()?.addQueryParameter("value", text)?.build()
-                    if (url != null) {
-                        val request = Request.Builder().url(url).get().build()
-                        client.newCall(request).execute().use { it.isSuccessful }
-                    } else false
-                } catch (_: Exception) { false }
-            }
-            if (success) {
-                Toast.makeText(this@MainActivity, R.string.sent_ntfy, Toast.LENGTH_SHORT).show()
-                onSent()
-            } else {
-                Toast.makeText(this@MainActivity, R.string.error_ntfy, Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private fun sendToNtfy(server: String, topic: String, secretKey: String, encryptionEnabled: Boolean, payload: String, onSent: () -> Unit) {
-        // Never fall back to plain text: the Receiver ignores messages it cannot decrypt
-        if (encryptionEnabled && secretKey.isBlank()) {
-            Toast.makeText(this, R.string.missing_key_error, Toast.LENGTH_LONG).show()
-            return
-        }
-        val cleanTopic = topic.trim()
-        if (!WebhookRepository.isValidTopic(cleanTopic)) {
-            Toast.makeText(this, R.string.invalid_topic_error, Toast.LENGTH_LONG).show()
-            return
-        }
-        lifecycleScope.launch {
-            val success = withContext(Dispatchers.IO) {
-                try {
-                    val client = OkHttpClient()
-                    val finalUrl = "${WebhookRepository.normalizeServerUrl(server)}/$cleanTopic"
-                    val encryptedPayload = if (encryptionEnabled) CryptoManager.encrypt(payload, secretKey) else payload
-                    val request = Request.Builder().url(finalUrl).post(encryptedPayload.toRequestBody("text/plain".toMediaType())).build()
-                    client.newCall(request).execute().use { it.isSuccessful }
-                } catch (_: Exception) { false }
-            }
-            if (success) {
-                Toast.makeText(this@MainActivity, R.string.sent_ntfy, Toast.LENGTH_SHORT).show()
-                onSent()
-            } else {
-                Toast.makeText(this@MainActivity, R.string.error_ntfy, Toast.LENGTH_SHORT).show()
-            }
+            val result = MessageSender.send(repository, data, title)
+            result.showToast(this@MainActivity)
+            if (result == SendResult.SENT) onSent()
         }
     }
 }
