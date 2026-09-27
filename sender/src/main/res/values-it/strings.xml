@@ -22,14 +22,14 @@
     <string name="sent_ntfy">Inviato a Screenmate!</string>
     <string name="error_ntfy">Errore nell\'invio a Screenmate</string>
     <string name="delivered">✓ Ricevuto dal ricevitore</string>
-    <string name="not_confirmed">Inviato, ma il ricevitore non ha confermato: lo riceverà appena sarà online</string>
+    <string name="not_confirmed">Inviato, ma il ricevitore non ha confermato</string>
     <string name="waiting_confirmation">In attesa di conferma…</string>
     <string name="tap_to_close">Tocca per chiudere</string>
     <string name="no_data_error">Nessun dato trovato da inviare</string>
     <string name="paste">Incolla</string>
     <string name="service_ntfy_default">ntfy.sh (predefinito)</string>
-    <string name="invalid_topic_error">Imposta un topic valido nelle Impostazioni (lettere, numeri, - e _) o scansiona il QR del Receiver</string>
-    <string name="missing_key_error">Cifratura attiva ma nessuna chiave: scansiona il QR del Receiver</string>
+    <string name="invalid_topic_error">Topic non valido: scansiona il QR del ricevitore</string>
+    <string name="missing_key_error">Nessuna chiave: scansiona il QR del ricevitore</string>
     <string name="save_success_ntfy">Configurazione ntfy salvata!</string>
     <string name="encryption_label">Crittografia End-to-End</string>
     <string name="char_limit_label">%1$d / 3000</string>

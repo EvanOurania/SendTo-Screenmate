@@ -3,17 +3,15 @@ package com.example.sendtoscreenmate
 import android.content.Context
 import android.widget.Toast
 import androidx.annotation.StringRes
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
@@ -54,7 +52,7 @@ object MessageSender {
     private const val DELIVERY_RECEIPT_TIMEOUT_MS = 10_000L
 
     private val client = OkHttpClient()
-    // The receipt topic is streamed until the receipt arrives or we give up
+    // Gives up on the receipt stream when nothing arrives for this long
     private val receiptClient = OkHttpClient.Builder()
         .readTimeout(DELIVERY_RECEIPT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         .build()
@@ -119,60 +117,87 @@ object MessageSender {
         if (body.toByteArray(Charsets.UTF_8).size > NTFY_MAX_MESSAGE_BYTES) return SendResult.TOO_LONG
 
         val serverUrl = WebhookRepository.normalizeServerUrl(server)
-        // ntfy answers with the published message, whose id and time we need to find its receipt
-        val published = withContext(Dispatchers.IO) {
-            try {
-                val request = Request.Builder()
-                    .url("$serverUrl/$cleanTopic")
-                    .post(body.toRequestBody("text/plain".toMediaType()))
-                    .build()
-                client.newCall(request).execute().use { response ->
-                    if (response.isSuccessful) JSONObject(response.body.string()) else null
-                }
-            } catch (_: Exception) {
-                null
-            }
-        } ?: return SendResult.FAILED
-        onPublished()
+        val receiptUrl = "$serverUrl/$cleanTopic$DELIVERY_RECEIPT_TOPIC_SUFFIX/json"
 
-        val delivered = withTimeoutOrNull(DELIVERY_RECEIPT_TIMEOUT_MS) {
-            awaitDeliveryReceipt(serverUrl, cleanTopic, published.optString("id"), published.optLong("time"))
-        } ?: false
-        return if (delivered) SendResult.DELIVERED else SendResult.NOT_CONFIRMED
-    }
-
-    /** Waits on the receipt topic for the Receiver to publish [messageId]. */
-    private suspend fun awaitDeliveryReceipt(serverUrl: String, topic: String, messageId: String, sentTime: Long): Boolean {
-        if (messageId.isEmpty()) return false
-        // since=<time> also returns a receipt that arrived before we started listening
-        val url = "$serverUrl/$topic$DELIVERY_RECEIPT_TOPIC_SUFFIX/json?since=${if (sentTime > 0) sentTime else "all"}"
-        val call = receiptClient.newCall(Request.Builder().url(url).build())
         return withContext(Dispatchers.IO) {
-            // Blocking reads ignore coroutine cancellation (e.g. the timeout): abort the call instead
-            val callGuard = launch(start = CoroutineStart.UNDISPATCHED) {
-                try {
-                    awaitCancellation()
-                } finally {
-                    call.cancel()
-                }
-            }
+            // Listen for the Receiver's receipt *before* publishing: ntfy.sh stores messages a second
+            // or two after receiving them, so a receipt sent before we listen would be neither
+            // delivered to us live nor found among the stored ones yet
+            val receipts = openReceiptStream(receiptUrl)
             try {
-                call.execute().use { response ->
-                    if (!response.isSuccessful) return@use false
-                    val source = response.body.source()
-                    var received = false
-                    while (!received) {
-                        val line = source.readUtf8Line() ?: break
-                        val event = JSONObject(line)
-                        received = event.optString("event") == "message" && event.optString("message") == messageId
+                val published = publish(serverUrl, cleanTopic, body) ?: return@withContext SendResult.FAILED
+                withContext(Dispatchers.Main) { onPublished() }
+
+                val messageId = published.optString("id")
+                val sentTime = published.optLong("time")
+                val delivered = when {
+                    messageId.isEmpty() -> false
+                    receipts != null -> awaitReceipt(receipts, messageId) || hasStoredReceipt(receiptUrl, messageId, sentTime)
+                    else -> {
+                        // Couldn't listen: give the Receiver time to answer, then look among the stored receipts
+                        delay(DELIVERY_RECEIPT_TIMEOUT_MS)
+                        hasStoredReceipt(receiptUrl, messageId, sentTime)
                     }
-                    received
                 }
-            } catch (_: Exception) {
-                false
+                if (delivered) SendResult.DELIVERED else SendResult.NOT_CONFIRMED
             } finally {
-                callGuard.cancel()
+                receipts?.close()
             }
         }
+    }
+
+    /** Publishes [body] and returns ntfy's answer (the published message, with its id and time), or null. */
+    private fun publish(serverUrl: String, topic: String, body: String): JSONObject? = try {
+        val request = Request.Builder()
+            .url("$serverUrl/$topic")
+            .post(body.toRequestBody("text/plain".toMediaType()))
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (response.isSuccessful) JSONObject(response.body.string()) else null
+        }
+    } catch (_: Exception) {
+        null
+    }
+
+    /** Subscribes to the receipt topic and waits until the server confirms it ("open" event), or null. */
+    private fun openReceiptStream(receiptUrl: String): Response? {
+        val response = try {
+            receiptClient.newCall(Request.Builder().url(receiptUrl).build()).execute()
+        } catch (_: Exception) {
+            return null
+        }
+        return try {
+            if (response.isSuccessful && response.body.source().readUtf8Line() != null) response else null
+        } catch (_: Exception) {
+            null
+        } ?: run {
+            response.close()
+            null
+        }
+    }
+
+    /** Reads the receipt stream until [messageId] arrives; false when nothing arrives in time. */
+    private fun awaitReceipt(receipts: Response, messageId: String): Boolean = try {
+        val source = receipts.body.source()
+        generateSequence { source.readUtf8Line() }.any { isReceipt(it, messageId) }
+    } catch (_: Exception) {
+        false // Read timeout: no receipt within DELIVERY_RECEIPT_TIMEOUT_MS
+    }
+
+    /** Looks for the receipt of [messageId] among those the server has stored since [sentTime]. */
+    private fun hasStoredReceipt(receiptUrl: String, messageId: String, sentTime: Long): Boolean = try {
+        val since = if (sentTime > 0) sentTime.toString() else "all"
+        client.newCall(Request.Builder().url("$receiptUrl?poll=1&since=$since").build()).execute().use { response ->
+            response.isSuccessful && response.body.string().lineSequence().any { isReceipt(it, messageId) }
+        }
+    } catch (_: Exception) {
+        false
+    }
+
+    private fun isReceipt(line: String, messageId: String): Boolean = try {
+        val event = JSONObject(line)
+        event.optString("event") == "message" && event.optString("message") == messageId
+    } catch (_: Exception) {
+        false
     }
 }
