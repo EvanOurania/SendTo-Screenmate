@@ -84,7 +84,7 @@ fun ChooserContent(
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp,
-            modifier = Modifier.widthIn(max = 560.dp),
+            modifier = Modifier.widthIn(max = 400.dp),
         ) {
             Column(
                 modifier = Modifier
