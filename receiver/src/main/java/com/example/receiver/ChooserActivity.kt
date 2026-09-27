@@ -201,16 +201,16 @@ class ChooserActivity : ComponentActivity() {
         var timeLeft by remember { mutableIntStateOf(initialDelay) }
         var isAutoOpenEnabled by remember { mutableStateOf(preferredApp != ReceiverRepository.APP_NONE && initialDelay > 0) }
 
-        if (isAutoOpenEnabled && timeLeft > 0) {
-            LaunchedEffect(Unit) {
-                while (timeLeft > 0) {
-                    delay(1000)
-                    timeLeft--
-                }
-                if (isAutoOpenEnabled) {
-                    executeAutoOpen(url, title, preferredApp)
-                    onDismiss()
-                }
+        // Not inside an `if (timeLeft > 0)`: when the countdown reached 0 that condition would remove
+        // this effect and cancel the auto-open while it's still running (e.g. expanding a link for Waze)
+        LaunchedEffect(Unit) {
+            while (isAutoOpenEnabled && timeLeft > 0) {
+                delay(1000)
+                timeLeft--
+            }
+            if (isAutoOpenEnabled) {
+                executeAutoOpen(url, title, preferredApp)
+                onDismiss()
             }
         }
 
