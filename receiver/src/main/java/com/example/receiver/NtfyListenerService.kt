@@ -259,7 +259,11 @@ class NtfyListenerService : Service() {
                     try {
                         CryptoManager.decrypt(rawMessage, secretKey)
                     } catch (_: Exception) {
-                        rawMessage
+                        // With a key set, only trust messages encrypted with it: anyone who knows
+                        // the topic can publish to it, and must not be able to open links here
+                        Log.w("NtfyListener", "Ignoring message that cannot be decrypted with the secret key")
+                        updateNotification(getString(R.string.notification_message_rejected))
+                        return
                     }
                 } else {
                     rawMessage
@@ -474,7 +478,9 @@ class NtfyListenerService : Service() {
         )
 
         // THE FIX: Title is now static "In ascolto", Content shows the last link name
-        val isSpecialStatus = content == getString(R.string.notification_restarting) || content == getString(R.string.notification_conn_lost)
+        val isSpecialStatus = content == getString(R.string.notification_restarting) ||
+            content == getString(R.string.notification_conn_lost) ||
+            content == getString(R.string.notification_message_rejected)
         
         val notificationTitle = if (isSpecialStatus) {
             content

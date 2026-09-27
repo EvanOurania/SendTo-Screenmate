@@ -210,13 +210,19 @@ class QuickSendActivity : ComponentActivity() {
     }
 
     private fun sendToNtfy(server: String, topic: String, secretKey: String, encryptionEnabled: Boolean, payload: String) {
+        // Never fall back to plain text: the Receiver ignores messages it cannot decrypt
+        if (encryptionEnabled && secretKey.isBlank()) {
+            Toast.makeText(this, R.string.missing_key_error, Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
         lifecycleScope.launch {
             val success = withContext(Dispatchers.IO) {
                 try {
                     val client = OkHttpClient()
                     val baseUrl = if (server.endsWith("/")) server else "$server/"
                     val finalUrl = "$baseUrl$topic"
-                    val encryptedPayload = if (encryptionEnabled && secretKey.isNotBlank()) CryptoManager.encrypt(payload, secretKey) else payload
+                    val encryptedPayload = if (encryptionEnabled) CryptoManager.encrypt(payload, secretKey) else payload
                     val request = Request.Builder().url(finalUrl).post(encryptedPayload.toRequestBody("text/plain".toMediaType())).build()
                     client.newCall(request).execute().use { it.isSuccessful }
                 } catch (_: Exception) { false }

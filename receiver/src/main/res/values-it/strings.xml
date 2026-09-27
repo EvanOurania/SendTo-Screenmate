@@ -36,6 +36,7 @@
     <string name="notification_listening">In ascolto su %1$s tramite %2$s</string>
     <string name="notification_conn_lost">Connessione persa. Riprovo tra 10s…</string>
     <string name="notification_start">Avvio ascolto…</string>
+    <string name="notification_message_rejected">Messaggio ignorato: non cifrato o chiave errata</string>
     <string name="service_running">Il servizio è in esecuzione</string>
     <string name="service_not_running">Il servizio NON è in esecuzione</string>
     <string name="encryption_label">Crittografia End-to-End</string>

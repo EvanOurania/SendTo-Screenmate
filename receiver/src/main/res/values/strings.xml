@@ -36,6 +36,7 @@
     <string name="notification_listening">Listening to %1$s on %2$s</string>
     <string name="notification_conn_lost">Connection lost. Retrying in 10s…</string>
     <string name="notification_start">Starting listener…</string>
+    <string name="notification_message_rejected">Message ignored: not encrypted or wrong key</string>
     <string name="service_running">Service is running</string>
     <string name="service_not_running">Service is NOT running</string>
     <string name="encryption_label">End-to-End Encryption</string>
