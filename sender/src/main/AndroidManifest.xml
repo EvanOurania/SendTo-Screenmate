@@ -33,7 +33,7 @@
             android:exported="true"
             android:theme="@style/Theme.SendToScreenMate.Transparent"
             android:excludeFromRecents="true"
-            android:taskAffinity="com.example.sendtoscreenmate.quicksend"
+            android:taskAffinity="io.github.evanourania.screenmate.sender.quicksend"
             android:launchMode="standard"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden">
             <intent-filter>

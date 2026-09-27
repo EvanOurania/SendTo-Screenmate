@@ -8,7 +8,8 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.example.sendtoscreenmate"
+        // Unique id of the app on the device (the code keeps its com.example package, set by namespace)
+        applicationId = "io.github.evanourania.screenmate.sender"
         minSdk = 24
         targetSdk = 37
         versionCode = 113

@@ -5,6 +5,9 @@ A lightweight, seamless solution to share Google Maps locations and web links be
 ## 📥 Download
 You can download the latest APK binaries for both apps from the **[Releases Page](https://github.com/EvanOurania/SendTo-ScreenMate/releases/latest)**.
 
+> [!NOTE]
+> **Upgrading from v1.1.116 or earlier:** the apps' package names changed, so the new versions install as separate apps. Uninstall the old Sender and Receiver, install the new ones and pair them again (step 2 and 3 below).
+
 ---
 
 This project consists of two separate applications: **Sender** (SendTo ScreenMate) and **Receiver**. They work together to bridge the gap between your primary phone and a secondary screen (like a tablet, infotainment system, or a fixed secondary device).
