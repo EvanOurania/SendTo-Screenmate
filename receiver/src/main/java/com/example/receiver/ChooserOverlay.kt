@@ -2,6 +2,7 @@ package com.example.receiver
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.provider.Settings
@@ -35,6 +36,20 @@ object ChooserOverlay {
     private var current: OverlayWindow? = null
 
     fun canShow(context: Context): Boolean = Settings.canDrawOverlays(context)
+
+    /** Shows the chooser over the other apps, or as [ChooserActivity] without the overlay permission. */
+    fun open(context: Context, url: String, title: String) {
+        if (canShow(context)) {
+            show(context, url, title)
+        } else {
+            val intent = Intent(context, ChooserActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                putExtra("url", url)
+                putExtra("title", title)
+            }
+            context.startActivity(intent)
+        }
+    }
 
     /** Replaces the chooser being shown, if any. */
     fun show(context: Context, url: String, title: String) {

@@ -439,16 +439,7 @@ class NtfyListenerService : Service() {
      */
     private fun showChooser(url: String, title: String) {
         serviceScope.launch(Dispatchers.Main) {
-            if (ChooserOverlay.canShow(this@NtfyListenerService)) {
-                ChooserOverlay.show(this@NtfyListenerService, url, title)
-            } else {
-                val intent = Intent(this@NtfyListenerService, ChooserActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    putExtra("url", url)
-                    putExtra("title", title)
-                }
-                startActivity(intent)
-            }
+            ChooserOverlay.open(this@NtfyListenerService, url, title)
         }
     }
 
@@ -541,9 +532,11 @@ class NtfyListenerService : Service() {
                 val isGeo = url.startsWith("geo:")
                 
                 val reopenIntent = if (isMaps || isGeo) {
+                    // An activity, so that the notification shade closes: it shows the chooser overlay
                     Intent(this, ChooserActivity::class.java).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         putExtra("url", url)
+                        putExtra("title", lastReceivedTitle ?: "")
                     }
                 } else {
                     Intent(Intent.ACTION_VIEW, url.toUri()).apply {
