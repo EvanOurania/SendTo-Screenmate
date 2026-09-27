@@ -376,13 +376,27 @@ class NtfyListenerService : Service() {
                                 finalUrl
                             }
 
+                            // Target the chosen app explicitly, otherwise a geo: link may open in another navigator
+                            val targetPackage = when (preferredApp) {
+                                ReceiverRepository.APP_MAPS -> "com.google.android.apps.maps"
+                                ReceiverRepository.APP_WAZE -> "com.waze"
+                                else -> null
+                            }
                             val directIntent = Intent(Intent.ACTION_VIEW, targetUri.toUri()).apply {
                                 // MINIMAL FLAGS: NEW_TASK is required from service, SINGLE_TOP preserves the split-screen activity
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                                setPackage(targetPackage)
                             }
                             try {
                                 startActivity(directIntent)
-                            } catch (_: Exception) {}
+                            } catch (_: Exception) {
+                                // Chosen app not installed: let Android pick one, like ChooserActivity does
+                                if (targetPackage != null) {
+                                    try {
+                                        startActivity(directIntent.setPackage(null))
+                                    } catch (_: Exception) {}
+                                }
+                            }
                             return@launch
                         }
 
