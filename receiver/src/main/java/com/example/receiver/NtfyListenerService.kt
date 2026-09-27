@@ -93,8 +93,17 @@ class NtfyListenerService : Service() {
 
     private fun acquireWakeLock() {
         val powerManager = getSystemService(POWER_SERVICE) as PowerManager
-        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Receiver::NtfyListener")
-        wakeLock?.acquire(24 * 60 * 60 * 1000L) // 24 hours
+        val lock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Receiver::NtfyListener").apply {
+            setReferenceCounted(false) // Acquiring it again just extends the timeout
+        }
+        wakeLock = lock
+        // The timeout is only a safety net: renew it well before it expires, for as long as the service runs
+        serviceScope.launch {
+            while (isActive) {
+                lock.acquire(WAKE_LOCK_TIMEOUT_MS)
+                delay(WAKE_LOCK_RENEW_INTERVAL_MS)
+            }
+        }
     }
 
     private fun closeNotificationPanel() {
@@ -587,6 +596,8 @@ class NtfyListenerService : Service() {
         const val ACTION_RESTART = "RESTART_SERVICE"
 
         private const val SETTINGS_CHANGE_DEBOUNCE_MS = 1500L
+        private const val WAKE_LOCK_TIMEOUT_MS = 24 * 60 * 60 * 1000L
+        private const val WAKE_LOCK_RENEW_INTERVAL_MS = 12 * 60 * 60 * 1000L
         private const val BURST_DEBOUNCE_MS = 500L
         // Links older than this (e.g. sent while the device was off) go to history but don't open by themselves
         private const val MAX_AUTO_OPEN_AGE_SECONDS = 30 * 60L
