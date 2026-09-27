@@ -103,7 +103,7 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
     }
 
-    /** [onSent] runs only if the message was actually delivered. */
+    /** [onSent] runs only if the message was actually sent. */
     fun triggerManualSend(data: String, onSent: () -> Unit) {
         val url = MessageSender.extractUrl(data)
         var title = ""
@@ -141,9 +141,10 @@ class MainActivity : ComponentActivity() {
 
     private fun performSendData(data: String, title: String, onSent: () -> Unit) {
         lifecycleScope.launch {
-            val result = MessageSender.send(repository, data, title)
+            // Clear the text as soon as the message has left, while waiting for the Receiver's confirmation
+            val result = MessageSender.send(repository, data, title, onPublished = onSent)
             result.showToast(this@MainActivity)
-            if (result == SendResult.SENT) onSent()
+            if (result.isSent) onSent()
         }
     }
 }

@@ -21,6 +21,10 @@
     <string name="sending_progress">Invio…</string>
     <string name="sent_ntfy">Inviato a Screenmate!</string>
     <string name="error_ntfy">Errore nell\'invio a Screenmate</string>
+    <string name="delivered">✓ Ricevuto dal ricevitore</string>
+    <string name="not_confirmed">Inviato, ma il ricevitore non ha confermato: lo riceverà appena sarà online</string>
+    <string name="waiting_confirmation">In attesa di conferma…</string>
+    <string name="tap_to_close">Tocca per chiudere</string>
     <string name="no_data_error">Nessun dato trovato da inviare</string>
     <string name="paste">Incolla</string>
     <string name="service_ntfy_default">ntfy.sh (predefinito)</string>

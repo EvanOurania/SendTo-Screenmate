@@ -21,6 +21,10 @@
     <string name="sending_progress">Sending…</string>
     <string name="sent_ntfy">Sent to Screenmate!</string>
     <string name="error_ntfy">Error sending to Screenmate</string>
+    <string name="delivered">✓ Received by the Receiver</string>
+    <string name="not_confirmed">Sent, but the Receiver didn\'t confirm: it will get it as soon as it\'s online</string>
+    <string name="waiting_confirmation">Waiting for confirmation…</string>
+    <string name="tap_to_close">Tap to close</string>
     <string name="no_data_error">No data found to send</string>
     <string name="paste">Paste</string>
     <string name="service_ntfy_default">ntfy.sh (default)</string>

@@ -36,8 +36,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Call
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
@@ -227,6 +229,7 @@ class NtfyListenerService : Service() {
                         else -> "none"
                     }
                     val url = "${server.trimEnd('/')}/$topic/json?since=$sinceParam"
+                    val receiptUrl = "${server.trimEnd('/')}/$topic$DELIVERY_RECEIPT_TOPIC_SUFFIX"
                     val request = Request.Builder()
                         .url(url)
                         .build()
@@ -255,7 +258,7 @@ class NtfyListenerService : Service() {
                                     if (!isActive) break
                                     Log.d("NtfyListener", "Received line from stream")
                                     // processLine() updates the notification itself when something changes
-                                    processLine(line, secretKey)
+                                    processLine(line, secretKey, receiptUrl)
                                 }
                                 Log.d("NtfyListener", "Stream ended or coroutine inactive")
                             }
@@ -276,7 +279,7 @@ class NtfyListenerService : Service() {
         }
     }
 
-    private fun processLine(line: String, secretKey: String) {
+    private fun processLine(line: String, secretKey: String, receiptUrl: String) {
         try {
             val json = JSONObject(line)
             
@@ -324,6 +327,12 @@ class NtfyListenerService : Service() {
                     }
                 } else {
                     rawMessage
+                }
+
+                // Tell the Sender the message arrived: it waits a few seconds for this, so skip
+                // old messages replayed after a reconnect
+                if (messageId.isNotEmpty() && (time <= 0 || latestServerTime - time <= DELIVERY_RECEIPT_MAX_AGE_SECONDS)) {
+                    sendDeliveryReceipt(receiptUrl, messageId)
                 }
 
                 // Try to parse the message as JSON to get the title and URL
@@ -613,6 +622,21 @@ class NtfyListenerService : Service() {
             }
         }
 
+    /** Publishes the id of a received message on the receipt topic, where the Sender is waiting for it. */
+    private fun sendDeliveryReceipt(receiptUrl: String, messageId: String) {
+        serviceScope.launch {
+            try {
+                val request = Request.Builder()
+                    .url(receiptUrl)
+                    .post(messageId.toRequestBody("text/plain".toMediaType()))
+                    .build()
+                client.newCall(request).execute().close()
+            } catch (e: Exception) {
+                Log.w("NtfyListener", "Could not send the delivery receipt", e)
+            }
+        }
+    }
+
     /** Waits [delayMs] before the next connection attempt, or less if a network becomes available. */
     private suspend fun waitBeforeReconnect(delayMs: Long) {
         networkAvailable.tryReceive() // Ignore a signal from before the connection failed
@@ -646,6 +670,9 @@ class NtfyListenerService : Service() {
         private const val MAX_RETRY_DELAY_MS = 60_000L
         // Links older than this (e.g. sent while the device was off) go to history but don't open by themselves
         private const val MAX_AUTO_OPEN_AGE_SECONDS = 30 * 60L
+        // Must match MessageSender.DELIVERY_RECEIPT_TOPIC_SUFFIX in the Sender
+        private const val DELIVERY_RECEIPT_TOPIC_SUFFIX = "_ack"
+        private const val DELIVERY_RECEIPT_MAX_AGE_SECONDS = 60L
 
         @Suppress("DEPRECATION")
         fun isRunning(context: Context): Boolean {

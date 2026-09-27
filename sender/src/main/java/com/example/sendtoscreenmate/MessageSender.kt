@@ -3,8 +3,12 @@ package com.example.sendtoscreenmate
 import android.content.Context
 import android.widget.Toast
 import androidx.annotation.StringRes
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
@@ -14,10 +18,21 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.TimeUnit
 
 /** Outcome of a send attempt, with the message to show to the user. */
-enum class SendResult(@StringRes val messageRes: Int, private val isLongMessage: Boolean = false) {
-    SENT(R.string.sent_ntfy),
+enum class SendResult(
+    @StringRes val messageRes: Int,
+    private val isLongMessage: Boolean = false,
+    /** The message left this device (whether or not the Receiver confirmed it). */
+    val isSent: Boolean = false,
+) {
+    /** Sent through MacroDroid, which cannot confirm delivery. */
+    SENT(R.string.sent_ntfy, isSent = true),
+    /** The Receiver confirmed it got the message. */
+    DELIVERED(R.string.delivered, isSent = true),
+    /** Sent, but the Receiver didn't confirm in time (off or offline): it gets it once back online. */
+    NOT_CONFIRMED(R.string.not_confirmed, isLongMessage = true, isSent = true),
     FAILED(R.string.error_ntfy),
     TOO_LONG(R.string.char_limit_exceeded, isLongMessage = true),
     MISSING_KEY(R.string.missing_key_error, isLongMessage = true),
@@ -35,10 +50,28 @@ object MessageSender {
     // non-ASCII characters (accents, emoji) make a message bigger than its number of characters.
     private const val NTFY_MAX_MESSAGE_BYTES = 4096
 
-    private val client = OkHttpClient()
+    // The Receiver publishes the id of each message it gets on "<topic>_ack".
+    // Must match DELIVERY_RECEIPT_TOPIC_SUFFIX in the Receiver's NtfyListenerService.
+    private const val DELIVERY_RECEIPT_TOPIC_SUFFIX = "_ack"
+    private const val DELIVERY_RECEIPT_TIMEOUT_MS = 10_000L
 
-    /** Sends [data] with its [title] through the service chosen in the settings (ntfy or MacroDroid). */
-    suspend fun send(repository: WebhookRepository, data: String, title: String): SendResult {
+    private val client = OkHttpClient()
+    // The receipt topic is streamed until the receipt arrives or we give up
+    private val receiptClient = OkHttpClient.Builder()
+        .readTimeout(DELIVERY_RECEIPT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        .build()
+
+    /**
+     * Sends [data] with its [title] through the service chosen in the settings (ntfy or MacroDroid).
+     * With ntfy it then waits for the Receiver to confirm; [onPublished] runs as soon as the message
+     * has left, before that wait.
+     */
+    suspend fun send(
+        repository: WebhookRepository,
+        data: String,
+        title: String,
+        onPublished: () -> Unit = {},
+    ): SendResult {
         val payload = JSONObject().apply {
             put("url", data)
             put("title", title)
@@ -54,6 +87,7 @@ object MessageSender {
                 secretKey = repository.secretKey.first(),
                 encryptionEnabled = repository.encryptionEnabled.first(),
                 payload = payload,
+                onPublished = onPublished,
             )
         }
     }
@@ -76,6 +110,7 @@ object MessageSender {
         secretKey: String,
         encryptionEnabled: Boolean,
         payload: String,
+        onPublished: () -> Unit,
     ): SendResult {
         // Encryption on but no key: refuse rather than silently sending in plain text
         if (encryptionEnabled && secretKey.isBlank()) return SendResult.MISSING_KEY
@@ -85,14 +120,60 @@ object MessageSender {
         val body = if (encryptionEnabled) CryptoManager.encrypt(payload, secretKey) else payload
         if (body.toByteArray(Charsets.UTF_8).size > NTFY_MAX_MESSAGE_BYTES) return SendResult.TOO_LONG
 
-        return withContext(Dispatchers.IO) {
+        val serverUrl = WebhookRepository.normalizeServerUrl(server)
+        // ntfy answers with the published message, whose id and time we need to find its receipt
+        val published = withContext(Dispatchers.IO) {
             try {
-                val finalUrl = "${WebhookRepository.normalizeServerUrl(server)}/$cleanTopic"
-                val request = Request.Builder().url(finalUrl).post(body.toRequestBody("text/plain".toMediaType())).build()
-                val success = client.newCall(request).execute().use { it.isSuccessful }
-                if (success) SendResult.SENT else SendResult.FAILED
+                val request = Request.Builder()
+                    .url("$serverUrl/$cleanTopic")
+                    .post(body.toRequestBody("text/plain".toMediaType()))
+                    .build()
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) JSONObject(response.body.string()) else null
+                }
             } catch (_: Exception) {
-                SendResult.FAILED
+                null
+            }
+        } ?: return SendResult.FAILED
+        onPublished()
+
+        val delivered = withTimeoutOrNull(DELIVERY_RECEIPT_TIMEOUT_MS) {
+            awaitDeliveryReceipt(serverUrl, cleanTopic, published.optString("id"), published.optLong("time"))
+        } ?: false
+        return if (delivered) SendResult.DELIVERED else SendResult.NOT_CONFIRMED
+    }
+
+    /** Waits on the receipt topic for the Receiver to publish [messageId]. */
+    private suspend fun awaitDeliveryReceipt(serverUrl: String, topic: String, messageId: String, sentTime: Long): Boolean {
+        if (messageId.isEmpty()) return false
+        // since=<time> also returns a receipt that arrived before we started listening
+        val url = "$serverUrl/$topic$DELIVERY_RECEIPT_TOPIC_SUFFIX/json?since=${if (sentTime > 0) sentTime else "all"}"
+        val call = receiptClient.newCall(Request.Builder().url(url).build())
+        return withContext(Dispatchers.IO) {
+            // Blocking reads ignore coroutine cancellation (e.g. the timeout): abort the call instead
+            val callGuard = launch(start = CoroutineStart.UNDISPATCHED) {
+                try {
+                    awaitCancellation()
+                } finally {
+                    call.cancel()
+                }
+            }
+            try {
+                call.execute().use { response ->
+                    if (!response.isSuccessful) return@use false
+                    val source = response.body.source()
+                    var received = false
+                    while (!received) {
+                        val line = source.readUtf8Line() ?: break
+                        val event = JSONObject(line)
+                        received = event.optString("event") == "message" && event.optString("message") == messageId
+                    }
+                    received
+                }
+            } catch (_: Exception) {
+                false
+            } finally {
+                callGuard.cancel()
             }
         }
     }
