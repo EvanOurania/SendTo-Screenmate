@@ -52,7 +52,6 @@ class ChooserActivity : ComponentActivity() {
         
         val url = intent.getStringExtra("url") ?: ""
         val title = intent.getStringExtra("title") ?: ""
-        val mode = intent.getStringExtra("mode") ?: ""
 
         if (url.isBlank()) {
             finish()
@@ -60,45 +59,8 @@ class ChooserActivity : ComponentActivity() {
         }
 
         lifecycleScope.launch {
+            // Auto-copy of received text is done by NtfyListenerService
             val repository = ReceiverRepository(this@ChooserActivity)
-            
-            // Universal Auto-Copy Fix for Android 10+
-            if (repository.copyToClipboard.first()) {
-                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-                val clip = ClipData.newPlainText("url", url)
-                clipboard.setPrimaryClip(clip)
-                Toast.makeText(this@ChooserActivity, R.string.text_copied_toast, Toast.LENGTH_SHORT).show()
-                
-                // Special handling for different auto-copy modes
-                when (mode) {
-                    "COPY_ONLY" -> {
-                        closeInstant()
-                        return@launch
-                    }
-                    "COPY_AND_OPEN_DIRECT" -> {
-                        val intent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                        }
-                        try {
-                            startActivity(intent)
-                        } catch (_: Exception) {}
-                        closeInstant()
-                        return@launch
-                    }
-                }
-            } else if (mode == "COPY_ONLY" || mode == "COPY_AND_OPEN_DIRECT") {
-                if (mode == "COPY_AND_OPEN_DIRECT") {
-                    val intent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    }
-                    try {
-                        startActivity(intent)
-                    } catch (_: Exception) {}
-                }
-                closeInstant()
-                return@launch
-            }
-
             val autoDelay = repository.autoOpenDelay.first()
             val isMapsLink = MapsUtils.isGoogleMapsLink(url)
             

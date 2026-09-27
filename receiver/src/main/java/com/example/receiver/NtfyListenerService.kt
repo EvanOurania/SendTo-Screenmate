@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import android.net.Uri
 import okhttp3.Call
@@ -186,7 +187,6 @@ class NtfyListenerService : Service() {
             val topic = repository.ntfyTopic.first().trim()
             val server = ReceiverRepository.normalizeServerUrl(repository.ntfyServer.first())
             val secretKey = repository.secretKey.first()
-            val copyToClipboard = repository.copyToClipboard.first()
             val persistedLastTime = repository.lastMessageTime.first()
             val persistedLastId = repository.lastMessageId.first()
 
@@ -254,7 +254,7 @@ class NtfyListenerService : Service() {
                                     if (!isActive) break
                                     Log.d("NtfyListener", "Received line from stream")
                                     // processLine() updates the notification itself when something changes
-                                    processLine(line, secretKey, copyToClipboard)
+                                    processLine(line, secretKey)
                                 }
                                 Log.d("NtfyListener", "Stream ended or coroutine inactive")
                             }
@@ -275,7 +275,7 @@ class NtfyListenerService : Service() {
         }
     }
 
-    private fun processLine(line: String, secretKey: String, copyToClipboard: Boolean) {
+    private fun processLine(line: String, secretKey: String) {
         try {
             val json = JSONObject(line)
             
@@ -341,9 +341,6 @@ class NtfyListenerService : Service() {
 
                 if (targetUrl.isBlank()) return
 
-                // Note: Background clipboard access is restricted on Android 10+.
-                // We now handle auto-copy inside ChooserActivity which is a foreground activity.
-
                 // --- IMPROVED HISTORY TITLE EXTRACTION ---
                 // If title is blank or generic, try to extract it from the URL
                 val refinedTitle = if (displayTitle.isBlank() || displayTitle.lowercase() == "location") {
@@ -405,20 +402,13 @@ class NtfyListenerService : Service() {
                         // Only locations go to the navigator; other links (web pages) open normally below
                         val isLocation = isMapsLink || finalUrl.startsWith("geo:")
 
+                        if (autoCopyEnabled) {
+                            copyReceivedText(targetUrl)
+                        }
+
                         // THE SPLIT-SCREEN SAVER: If delay is 0, launch directly from Service.
                         // This bypasses ChooserActivity task manipulation and keeps split-screen intact.
                         if (isLocation && autoDelay == 0 && preferredApp != ReceiverRepository.APP_NONE) {
-                            // Still handle auto-copy if enabled
-                            if (autoCopyEnabled) {
-                                val intent = Intent(this@NtfyListenerService, ChooserActivity::class.java).apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                                    val textToCopy = if (targetUrl.isNotBlank()) targetUrl else decryptedMessage
-                                    putExtra("url", textToCopy)
-                                    putExtra("mode", "COPY_ONLY")
-                                }
-                                startActivity(intent)
-                            }
-
                             // Build the final URI for direct launch
                             val targetUri = if (preferredApp == ReceiverRepository.APP_WAZE) {
                                 MapsUtils.getWazeUriResolvingShortLink(rawMapsUrl, displayTitle)
@@ -462,22 +452,7 @@ class NtfyListenerService : Service() {
                                 putExtra("title", displayTitle)
                             }
                             startActivity(intent)
-                        } else if (autoCopyEnabled) {
-                            // For generic text/links, trigger ChooserActivity for background copy bypass
-                            val intent = Intent(this@NtfyListenerService, ChooserActivity::class.java).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                val textToCopy = if (targetUrl.isNotBlank()) targetUrl else decryptedMessage
-                                putExtra("url", textToCopy)
-                                
-                                if (finalUrl.isBlank()) {
-                                    putExtra("mode", "COPY_ONLY")
-                                } else {
-                                    putExtra("mode", "COPY_AND_OPEN_DIRECT")
-                                }
-                            }
-                            startActivity(intent)
-                        } else if (finalUrl.isNotBlank()) {
-                            // No copy, but we have a valid URL: just open it normally
+                        } else {
                             openUrl(finalUrl)
                         }
                     }
@@ -486,6 +461,16 @@ class NtfyListenerService : Service() {
         } catch (_: Exception) {
             // Ignore parse errors
         }
+    }
+
+    /**
+     * Android 10+ only forbids *reading* the clipboard from the background, not writing to it,
+     * so no activity has to be opened for this.
+     */
+    private suspend fun copyReceivedText(text: String) = withContext(Dispatchers.Main) {
+        val clipboard = getSystemService(ClipboardManager::class.java)
+        clipboard.setPrimaryClip(ClipData.newPlainText("url", text))
+        Toast.makeText(this@NtfyListenerService, R.string.text_copied_toast, Toast.LENGTH_SHORT).show()
     }
 
     private fun openUrl(url: String) {
