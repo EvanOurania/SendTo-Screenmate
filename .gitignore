@@ -11,3 +11,6 @@ local.properties
 *.jks
 *.keystore
 google-services.json
+# APKs from Android Studio's "Generate Signed App Bundle or APK": published through GitHub releases, not committed
+/receiver/release/
+/sender/release/
