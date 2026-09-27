@@ -207,8 +207,8 @@ class NtfyListenerService : Service() {
                                     val line = br.readLine() ?: break
                                     if (!isActive) break
                                     Log.d("NtfyListener", "Received line from stream")
+                                    // processLine() updates the notification itself when something changes
                                     processLine(line, secretKey, copyToClipboard)
-                                    updateNotification(getString(R.string.notification_listening, topic, server))
                                 }
                                 Log.d("NtfyListener", "Stream ended or coroutine inactive")
                             }
@@ -516,6 +516,7 @@ class NtfyListenerService : Service() {
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(mainPendingIntent)
             .setOngoing(true)
+            .setOnlyAlertOnce(true) // Status updates must not ring or vibrate every time
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
 
         if (prefShowRestartBtn) {
