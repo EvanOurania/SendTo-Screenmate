@@ -618,19 +618,15 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
                                     }
                                 }
 
-                                // THE FIX STEP 2: Always reserve space for the QR code to avoid layout jumping
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(260.dp), // Increased height to accommodate multi-line text (200dp QR + text + spacers)
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (topic.isNotBlank() && secretKey.isNotBlank()) {
+                                // The QR code contains the secret key: show it only while pairing a Sender
+                                if (topic.isNotBlank() && secretKey.isNotBlank()) {
+                                    var showQr by remember { mutableStateOf(false) }
+                                    if (showQr) {
                                         val qrContent = "$server|$topic|$secretKey"
                                         val qrBitmap = remember(qrContent) {
                                             QRCodeGenerator.generate(qrContent, 512)
                                         }
-                                        
+
                                         Column(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalAlignment = Alignment.CenterHorizontally
@@ -646,6 +642,16 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
                                                 style = MaterialTheme.typography.bodyMedium, // Increased size
                                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                             )
+                                            TextButton(onClick = { showQr = false }) {
+                                                Text(stringResource(R.string.hide_qr))
+                                            }
+                                        }
+                                    } else {
+                                        OutlinedButton(
+                                            onClick = { showQr = true },
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text(stringResource(R.string.show_qr))
                                         }
                                     }
                                 }

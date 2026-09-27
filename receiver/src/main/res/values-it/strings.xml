@@ -41,6 +41,8 @@
     <string name="notification_channel_name">Servizio di ascolto</string>
     <string name="error_opening_link">Impossibile aprire il link</string>
     <string name="history_untitled">Posizione/Link</string>
+    <string name="show_qr">Mostra QR code per il Sender</string>
+    <string name="hide_qr">Nascondi QR code</string>
     <string name="notification_message_rejected">Messaggio ignorato: chiave di cifratura errata</string>
     <string name="service_running">Il servizio è in esecuzione</string>
     <string name="service_not_running">Il servizio NON è in esecuzione</string>
