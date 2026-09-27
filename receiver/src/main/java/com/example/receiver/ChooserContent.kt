@@ -1,6 +1,5 @@
 package com.example.receiver
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -18,7 +17,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -29,8 +27,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * The navigation app chooser: a card over a dimmed background, drawn in a single window (no separate
- * dialog window). Tapping outside the card closes it. Shown by [ChooserOverlay] and [ChooserActivity].
+ * The navigation app chooser: a card over a transparent background, drawn in a single window (no
+ * separate dialog window). Tapping outside the card closes it. Shown by [ChooserOverlay] and
+ * [ChooserActivity].
  */
 @Composable
 fun ChooserContent(
@@ -69,7 +68,6 @@ fun ChooserContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.5f))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -84,6 +82,7 @@ fun ChooserContent(
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp,
+            shadowElevation = 12.dp, // Stands out from what's behind it, e.g. a map
             modifier = Modifier.widthIn(max = 400.dp),
         ) {
             Column(

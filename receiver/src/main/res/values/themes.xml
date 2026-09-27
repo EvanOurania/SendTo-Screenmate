@@ -13,8 +13,8 @@
         <item name="postSplashScreenTheme">@style/Theme.Receiver</item>
     </style>
 
-    <!-- ChooserActivity: a full-screen transparent window. ChooserContent draws its own dimmed
-         background, so no system dim and no open/close animations that could flicker -->
+    <!-- ChooserActivity: a full-screen transparent window, without system dim and without
+         open/close animations that could flicker -->
     <style name="Theme.Receiver.Transparent" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsTranslucent">true</item>

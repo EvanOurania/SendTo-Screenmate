@@ -33,7 +33,7 @@ class ChooserActivity : ComponentActivity() {
             return
         }
 
-        enableEdgeToEdge() // Transparent status bar behind the chooser's dimmed background
+        enableEdgeToEdge() // Keeps the status bar transparent too
         val launcher = NavigatorLauncher(this, url, title, lifecycleScope)
         lifecycleScope.launch {
             val settings = NavigatorLauncher.loadSettings(this@ChooserActivity, url)
