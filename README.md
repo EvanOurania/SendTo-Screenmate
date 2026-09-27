@@ -108,6 +108,14 @@ Every push runs the unit tests and lint on GitHub Actions (`.github/workflows/bu
 - `SIGNING_KEY_ALIAS`: the key alias
 - `SIGNING_KEY_PASSWORD`: the key password
 
+**Builds from Android Studio:** by default they are signed with Android Studio's debug key, so Android refuses to install them over an APK from the Releases page (and the other way around). To sign them with the release key too, add these lines to `~/.gradle/gradle.properties` on your computer (outside the project, so they never end up on GitHub):
+```properties
+SIGNING_KEYSTORE_PATH=/full/path/to/my-keystore.jks
+SIGNING_STORE_PASSWORD=...
+SIGNING_KEY_ALIAS=...
+SIGNING_KEY_PASSWORD=...
+```
+
 **For each release:**
 1. Increase `versionCode` and `versionName` in `receiver/build.gradle.kts` and `sender/build.gradle.kts`, then commit.
 2. Tag and push: `git tag v1.2.0 && git push origin main v1.2.0`
