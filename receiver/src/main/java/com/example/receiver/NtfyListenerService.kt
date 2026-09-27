@@ -10,6 +10,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
@@ -22,6 +24,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -30,6 +33,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import android.net.Uri
 import okhttp3.Call
 import okhttp3.OkHttpClient
@@ -49,6 +53,32 @@ class NtfyListenerService : Service() {
     private var lastMessageId: String = ""
     private var latestServerTime: Long = 0
     private var pendingAutoOpen: Job? = null
+    private val networkAvailable = Channel<Unit>(Channel.CONFLATED)
+
+    /**
+     * Reconnects right away when the device gets back online or switches network (e.g. Wi-Fi to
+     * mobile data), instead of waiting for the retry delay or for the dead connection to time out.
+     */
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        private var currentNetwork: Network? = null
+        private var hasSeenNetwork = false
+
+        override fun onAvailable(network: Network) {
+            // Not on the first call, made at registration while the listener is already connecting
+            val isNewNetwork = hasSeenNetwork && network != currentNetwork
+            currentNetwork = network
+            hasSeenNetwork = true
+            networkAvailable.trySend(Unit) // Ends a pending retry delay
+            if (isNewNetwork) {
+                Log.d("NtfyListener", "Network changed - reconnecting")
+                serviceScope.launch(Dispatchers.Main) { startListening() }
+            }
+        }
+
+        override fun onLost(network: Network) {
+            if (network == currentNetwork) currentNetwork = null
+        }
+    }
 
     private var prefShowRestartBtn = true
     private var prefShowStopBtn = true
@@ -69,6 +99,7 @@ class NtfyListenerService : Service() {
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification(getString(R.string.notification_start)))
         observeConnectionSettings()
+        getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(networkCallback)
     }
 
     /**
@@ -183,6 +214,7 @@ class NtfyListenerService : Service() {
                 lastMessageId = persistedLastId
             }
 
+            var retryDelayMs = INITIAL_RETRY_DELAY_MS
             while (isActive) {
                 try {
                     // Resume right after the last handled message. A message id is exclusive, while a
@@ -213,6 +245,7 @@ class NtfyListenerService : Service() {
                             // Success! Update notification if we just reconnected
                             Log.d("NtfyListener", "Connection successful! Listening for stream...")
                             updateNotification(getString(R.string.notification_listening, topic, server))
+                            retryDelayMs = INITIAL_RETRY_DELAY_MS
 
                             val reader = response.body.source().inputStream().bufferedReader()
                             reader.let { br ->
@@ -233,7 +266,9 @@ class NtfyListenerService : Service() {
                     Log.e("NtfyListener", "Exception in connection loop", e)
                     if (isActive) {
                         updateNotification(getString(R.string.notification_conn_lost))
-                        delay(5000)
+                        waitBeforeReconnect(retryDelayMs)
+                        // Space out retries while the server stays unreachable, to save battery
+                        retryDelayMs = (retryDelayMs * 2).coerceAtMost(MAX_RETRY_DELAY_MS)
                     }
                 }
             }
@@ -590,7 +625,18 @@ class NtfyListenerService : Service() {
             }
         }
 
+    /** Waits [delayMs] before the next connection attempt, or less if a network becomes available. */
+    private suspend fun waitBeforeReconnect(delayMs: Long) {
+        networkAvailable.tryReceive() // Ignore a signal from before the connection failed
+        withTimeoutOrNull(delayMs) { networkAvailable.receive() }
+    }
+
     override fun onDestroy() {
+        try {
+            getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(networkCallback)
+        } catch (_: IllegalArgumentException) {
+            // Not registered
+        }
         serviceJob.cancel()
         wakeLock?.let {
             if (it.isHeld) it.release()
@@ -608,6 +654,8 @@ class NtfyListenerService : Service() {
         private const val WAKE_LOCK_TIMEOUT_MS = 24 * 60 * 60 * 1000L
         private const val WAKE_LOCK_RENEW_INTERVAL_MS = 12 * 60 * 60 * 1000L
         private const val BURST_DEBOUNCE_MS = 500L
+        private const val INITIAL_RETRY_DELAY_MS = 5_000L
+        private const val MAX_RETRY_DELAY_MS = 60_000L
         // Links older than this (e.g. sent while the device was off) go to history but don't open by themselves
         private const val MAX_AUTO_OPEN_AGE_SECONDS = 30 * 60L
 

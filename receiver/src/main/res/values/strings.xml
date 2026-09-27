@@ -35,7 +35,7 @@
     <string name="notification_topic_not_set">Topic not configured</string>
     <string name="notification_topic_invalid">Invalid topic: use only letters, numbers, - and _</string>
     <string name="notification_listening">Listening to %1$s on %2$s</string>
-    <string name="notification_conn_lost">Connection lost. Retrying in 10s…</string>
+    <string name="notification_conn_lost">Connection lost. Retrying…</string>
     <string name="notification_start">Starting listener…</string>
     <string name="notification_message_rejected">Message ignored: wrong encryption key</string>
     <string name="service_running">Service is running</string>
