@@ -276,22 +276,6 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
         canDrawOverlays = Settings.canDrawOverlays(context)
     }
 
-    fun restartServiceIfRunning() {
-        if (isServiceRunning == true) {
-            val stopIntent = Intent(context, NtfyListenerService::class.java).apply {
-                action = NtfyListenerService.ACTION_STOP
-            }
-            context.startService(stopIntent)
-            
-            val startIntent = Intent(context, NtfyListenerService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(startIntent)
-            } else {
-                context.startService(startIntent)
-            }
-        }
-    }
-
     LaunchedEffect(Unit) {
         while (isActive) {
             isServiceRunning = NtfyListenerService.isRunning(context)
@@ -381,7 +365,6 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
                         scope.launch { 
                             repository.saveNtfyConfig(newTopic, server)
                             repository.saveSecretKey(newKey)
-                            restartServiceIfRunning()
                         }
                         showGenerateDialog = false
                     }
@@ -578,7 +561,6 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
                                         topic = it
                                         scope.launch { 
                                             repository.saveNtfyConfig(it, server)
-                                            restartServiceIfRunning()
                                         }
                                     },
                                     label = { Text(stringResource(R.string.ntfy_topic_label)) },
@@ -664,7 +646,6 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
                                         server = it
                                         scope.launch { 
                                             repository.saveNtfyConfig(topic, it)
-                                            restartServiceIfRunning()
                                         }
                                     },
                                     label = { Text(stringResource(R.string.ntfy_server_label)) },

@@ -18,13 +18,20 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import android.net.Uri
+import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
@@ -39,13 +46,18 @@ class NtfyListenerService : Service() {
     private var lastReceivedUrl: String? = null
     private var lastReceivedTitle: String? = null
     private var lastMessageTime: Long = 0
+    private var lastMessageId: String = ""
+    private var latestServerTime: Long = 0
+    private var pendingAutoOpen: Job? = null
 
     private var prefShowRestartBtn = true
     private var prefShowStopBtn = true
     private var prefShowReopenBtn = true
 
     private val client = OkHttpClient.Builder()
-        .readTimeout(0, TimeUnit.MILLISECONDS) // Disable timeout for long polling/streaming
+        // ntfy sends a keepalive line every 45s: if nothing arrives for longer than that,
+        // the connection is dead (e.g. after a Wi-Fi/mobile switch) and we must reconnect
+        .readTimeout(90, TimeUnit.SECONDS)
         .connectTimeout(1, TimeUnit.MINUTES)
         .build()
 
@@ -56,6 +68,27 @@ class NtfyListenerService : Service() {
         acquireWakeLock()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification(getString(R.string.notification_start)))
+        observeConnectionSettings()
+    }
+
+    /**
+     * Reconnects when topic, server or secret key change in the settings, waiting until the user
+     * stops typing so we reconnect once instead of on every keystroke.
+     */
+    private fun observeConnectionSettings() {
+        val repository = ReceiverRepository(this)
+        serviceScope.launch(Dispatchers.Main) {
+            combine(repository.ntfyTopic, repository.ntfyServer, repository.secretKey) { topic, server, key ->
+                Triple(topic, server, key)
+            }
+                .distinctUntilChanged()
+                .drop(1) // The current values are already used by startListening()
+                .collectLatest {
+                    delay(SETTINGS_CHANGE_DEBOUNCE_MS)
+                    Log.d("NtfyListener", "Connection settings changed - restarting listener")
+                    startListening()
+                }
+        }
     }
 
     private fun acquireWakeLock() {
@@ -115,6 +148,7 @@ class NtfyListenerService : Service() {
             val secretKey = repository.secretKey.first()
             val copyToClipboard = repository.copyToClipboard.first()
             val persistedLastTime = repository.lastMessageTime.first()
+            val persistedLastId = repository.lastMessageId.first()
 
             // Initialize lastReceivedUrl from history for the "Reopen" button
             if (lastReceivedUrl == null) {
@@ -132,38 +166,55 @@ class NtfyListenerService : Service() {
             if (lastMessageTime == 0L) {
                 lastMessageTime = persistedLastTime
             }
+            if (lastMessageId.isEmpty()) {
+                lastMessageId = persistedLastId
+            }
 
             while (isActive) {
                 try {
-                    val sinceParam = if (lastMessageTime == 0L) "all" else lastMessageTime.toString()
+                    // Resume right after the last handled message. A message id is exclusive, while a
+                    // timestamp is inclusive and would deliver the last message a second time.
+                    // With nothing stored (first run) skip old messages instead of replaying all of them.
+                    val sinceParam = when {
+                        lastMessageId.isNotEmpty() -> lastMessageId
+                        lastMessageTime > 0 -> lastMessageTime.toString()
+                        else -> "none"
+                    }
                     val url = "${server.trimEnd('/')}/$topic/json?since=$sinceParam"
                     val request = Request.Builder()
                         .url(url)
                         .build()
 
                     Log.d("NtfyListener", "Executing HTTP Request to $url")
-                    client.newCall(request).execute().use { response ->
-                        if (!response.isSuccessful) {
-                            Log.e("NtfyListener", "HTTP Error: ${response.code}")
-                            updateNotification("Error: ${response.code}")
-                            delay(10000)
-                            return@use
-                        }
-
-                        // Success! Update notification if we just reconnected
-                        Log.d("NtfyListener", "Connection successful! Listening for stream...")
-                        updateNotification(getString(R.string.notification_listening, topic, server))
-
-                        val reader = response.body.source().inputStream().bufferedReader()
-                        reader.let { br ->
-                            while (isActive) {
-                                val line = br.readLine() ?: break
-                                Log.d("NtfyListener", "Received line from stream")
-                                processLine(line, secretKey, copyToClipboard)
-                                updateNotification(getString(R.string.notification_listening, topic, server))
+                    val call = client.newCall(request)
+                    val callGuard = cancelCallWhenCancelled(call)
+                    try {
+                        call.execute().use { response ->
+                            if (!response.isSuccessful) {
+                                Log.e("NtfyListener", "HTTP Error: ${response.code}")
+                                updateNotification("Error: ${response.code}")
+                                delay(10000)
+                                return@use
                             }
-                            Log.d("NtfyListener", "Stream ended or coroutine inactive")
+
+                            // Success! Update notification if we just reconnected
+                            Log.d("NtfyListener", "Connection successful! Listening for stream...")
+                            updateNotification(getString(R.string.notification_listening, topic, server))
+
+                            val reader = response.body.source().inputStream().bufferedReader()
+                            reader.let { br ->
+                                while (isActive) {
+                                    val line = br.readLine() ?: break
+                                    if (!isActive) break
+                                    Log.d("NtfyListener", "Received line from stream")
+                                    processLine(line, secretKey, copyToClipboard)
+                                    updateNotification(getString(R.string.notification_listening, topic, server))
+                                }
+                                Log.d("NtfyListener", "Stream ended or coroutine inactive")
+                            }
                         }
+                    } finally {
+                        callGuard.cancel()
                     }
                 } catch (e: Exception) {
                     Log.e("NtfyListener", "Exception in connection loop", e)
@@ -184,6 +235,7 @@ class NtfyListenerService : Service() {
             val time = json.optLong("time")
             if (time > 0) {
                 lastMessageTime = time
+                latestServerTime = maxOf(latestServerTime, time)
                 // Persist to storage
                 serviceScope.launch {
                     val repository = ReceiverRepository(this@NtfyListenerService)
@@ -192,6 +244,15 @@ class NtfyListenerService : Service() {
             }
 
             if (json.optString("event") == "message") {
+                val messageId = json.optString("id")
+                if (messageId.isNotEmpty()) {
+                    lastMessageId = messageId
+                    serviceScope.launch {
+                        val repository = ReceiverRepository(this@NtfyListenerService)
+                        repository.saveLastMessageId(messageId)
+                    }
+                }
+
                 val rawMessage = json.optString("message")
                 
                 val decryptedMessage = if (secretKey.isNotBlank()) {
@@ -269,8 +330,15 @@ class NtfyListenerService : Service() {
                         lastReceivedTitle = refinedTitle
                         updateNotification(getString(R.string.notification_title))
                     }
-                    
-                    serviceScope.launch {
+
+                    // After a reconnect the server replays the missed messages in a quick burst:
+                    // only the newest one opens, and only if it is still recent. All of them
+                    // are already in the history and the newest one stays in the notification.
+                    val isRecent = time <= 0 || latestServerTime - time <= MAX_AUTO_OPEN_AGE_SECONDS
+                    if (!isRecent) return
+                    pendingAutoOpen?.cancel()
+                    pendingAutoOpen = serviceScope.launch {
+                        delay(BURST_DEBOUNCE_MS)
                         val repository = ReceiverRepository(this@NtfyListenerService)
                         val autoCopyEnabled = repository.copyToClipboard.first()
                         val autoDelay = repository.autoOpenDelay.first()
@@ -470,6 +538,19 @@ class NtfyListenerService : Service() {
         manager.notify(NOTIFICATION_ID, notification)
     }
 
+    /**
+     * OkHttp's blocking reads ignore coroutine cancellation: without this, a stopped or restarted
+     * listener would keep its old connection open (and keep handling messages) until the next line arrives.
+     */
+    private fun CoroutineScope.cancelCallWhenCancelled(call: Call): Job =
+        launch(start = CoroutineStart.UNDISPATCHED) {
+            try {
+                awaitCancellation()
+            } finally {
+                call.cancel()
+            }
+        }
+
     override fun onDestroy() {
         serviceJob.cancel()
         wakeLock?.let {
@@ -483,6 +564,11 @@ class NtfyListenerService : Service() {
         private const val NOTIFICATION_ID = 1
         const val ACTION_STOP = "STOP_SERVICE"
         const val ACTION_RESTART = "RESTART_SERVICE"
+
+        private const val SETTINGS_CHANGE_DEBOUNCE_MS = 1500L
+        private const val BURST_DEBOUNCE_MS = 500L
+        // Links older than this (e.g. sent while the device was off) go to history but don't open by themselves
+        private const val MAX_AUTO_OPEN_AGE_SECONDS = 30 * 60L
 
         @Suppress("DEPRECATION")
         fun isRunning(context: Context): Boolean {

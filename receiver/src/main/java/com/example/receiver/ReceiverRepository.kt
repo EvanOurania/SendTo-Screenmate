@@ -22,6 +22,7 @@ class ReceiverRepository(val context: Context) {
         val SECRET_KEY_KEY = stringPreferencesKey("secret_key")
         val COPY_TO_CLIPBOARD_KEY = booleanPreferencesKey("copy_to_clipboard")
         val LAST_MESSAGE_TIME_KEY = longPreferencesKey("last_message_time")
+        val LAST_MESSAGE_ID_KEY = stringPreferencesKey("last_message_id")
         val AUTO_OPEN_MAPS_APP_KEY = stringPreferencesKey("auto_open_maps_app")
         val AUTO_OPEN_GEO_APP_KEY = stringPreferencesKey("auto_open_geo_app")
         val AUTO_OPEN_DELAY_KEY = intPreferencesKey("auto_open_delay")
@@ -75,6 +76,11 @@ class ReceiverRepository(val context: Context) {
     val lastMessageTime: Flow<Long> = context.dataStore.data
         .map { preferences ->
             preferences[LAST_MESSAGE_TIME_KEY] ?: 0L
+        }
+
+    val lastMessageId: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[LAST_MESSAGE_ID_KEY] ?: ""
         }
 
     val autoOpenMapsApp: Flow<String> = context.dataStore.data
@@ -132,6 +138,12 @@ class ReceiverRepository(val context: Context) {
     suspend fun saveLastMessageTime(time: Long) {
         context.dataStore.edit { preferences ->
             preferences[LAST_MESSAGE_TIME_KEY] = time
+        }
+    }
+
+    suspend fun saveLastMessageId(id: String) {
+        context.dataStore.edit { preferences ->
+            preferences[LAST_MESSAGE_ID_KEY] = id
         }
     }
 
