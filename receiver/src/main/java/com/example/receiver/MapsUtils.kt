@@ -104,9 +104,10 @@ object MapsUtils {
         val gLon = GOOGLE_PRECISE_LON.find(decodedUrl)
         if (gLat != null && gLon != null) return "${gLat.groupValues[1]},${gLon.groupValues[1]}"
 
-        // 2. Google Waypoints (!1d LON / !2d LAT - note the swap in Google's internal format)
-        val wLon = GOOGLE_WAYPOINT_LON.find(decodedUrl)
-        val wLat = GOOGLE_WAYPOINT_LAT.find(decodedUrl)
+        // 2. Google Waypoints (!1d LON / !2d LAT - note the swap in Google's internal format).
+        // Waypoints are listed in route order: the last one is the destination, the first the start.
+        val wLon = GOOGLE_WAYPOINT_LON.findAll(decodedUrl).lastOrNull()
+        val wLat = GOOGLE_WAYPOINT_LAT.findAll(decodedUrl).lastOrNull()
         if (wLat != null && wLon != null) return "${wLat.groupValues[1]},${wLon.groupValues[1]}"
 
         // 3. Common patterns: query=, ll=, @lat,lon, loc:
