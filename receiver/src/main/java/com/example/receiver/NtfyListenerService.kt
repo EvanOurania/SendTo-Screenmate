@@ -272,11 +272,14 @@ class NtfyListenerService : Service() {
                     try {
                         CryptoManager.decrypt(rawMessage, secretKey)
                     } catch (_: Exception) {
-                        // With a key set, only trust messages encrypted with it: anyone who knows
-                        // the topic can publish to it, and must not be able to open links here
-                        Log.w("NtfyListener", "Ignoring message that cannot be decrypted with the secret key")
-                        updateNotification(getString(R.string.notification_message_rejected))
-                        return
+                        if (CryptoManager.looksEncrypted(rawMessage)) {
+                            // Encrypted with a different key: its content is unreadable, don't try to open it
+                            Log.w("NtfyListener", "Ignoring message encrypted with a different secret key")
+                            updateNotification(getString(R.string.notification_message_rejected))
+                            return
+                        }
+                        // Sent in plain text (encryption turned off in the Sender)
+                        rawMessage
                     }
                 } else {
                     rawMessage

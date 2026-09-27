@@ -11,6 +11,15 @@ object CryptoManager {
     private const val TAG_LENGTH_BIT = 128
     private const val IV_LENGTH_BYTE = 12
 
+    // Base64 of at least IV (12) + GCM tag (16) bytes = 28 bytes, i.e. 40 characters
+    private val ENCRYPTED_FORMAT = Regex("^[A-Za-z0-9+/]{38,}={0,2}$")
+
+    /**
+     * Whether [data] has the shape of a message produced by [encrypt]. Plain messages (JSON, links,
+     * text) never do, because they contain characters that are not part of the Base64 alphabet.
+     */
+    fun looksEncrypted(data: String): Boolean = ENCRYPTED_FORMAT.matches(data.trim())
+
     fun generateSecretKey(): String {
         val key = ByteArray(32) // 256 bits
         SecureRandom().nextBytes(key)
