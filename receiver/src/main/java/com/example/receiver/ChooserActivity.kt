@@ -36,11 +36,17 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import com.example.receiver.ui.theme.ReceiverTheme
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class ChooserActivity : ComponentActivity() {
+
+    // Prepared in the background as soon as the chooser opens (it may need to expand a short
+    // link over the network), so Waze opens right away when the countdown ends or it's tapped
+    private lateinit var wazeUri: Deferred<String>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,6 +58,8 @@ class ChooserActivity : ComponentActivity() {
             finish()
             return
         }
+
+        wazeUri = lifecycleScope.async { MapsUtils.getWazeUriResolvingShortLink(url, title) }
 
         lifecycleScope.launch {
             // Auto-copy of received text is done by NtfyListenerService
@@ -66,7 +74,7 @@ class ChooserActivity : ComponentActivity() {
             }
 
             if (autoDelay == 0 && preferredApp != ReceiverRepository.APP_NONE) {
-                executeAutoOpen(url, title, preferredApp)
+                executeAutoOpen(url, preferredApp)
                 closeInstant()
                 return@launch
             }
@@ -99,7 +107,7 @@ class ChooserActivity : ComponentActivity() {
         }
     }
 
-    private suspend fun executeAutoOpen(url: String, title: String, preferredApp: String) {
+    private suspend fun executeAutoOpen(url: String, preferredApp: String) {
         when (preferredApp) {
             ReceiverRepository.APP_MAPS -> {
                 val coords = MapsUtils.extractCoordinates(url)
@@ -107,8 +115,7 @@ class ChooserActivity : ComponentActivity() {
                 openWithPackage(targetUri, "com.google.android.apps.maps")
             }
             ReceiverRepository.APP_WAZE -> {
-                val targetUri = MapsUtils.getWazeUriResolvingShortLink(url, title)
-                openWithPackage(targetUri, "com.waze")
+                openWithPackage(wazeUri.await(), "com.waze")
             }
             ReceiverRepository.APP_OTHER -> {
                 val targetUri = MapsUtils.getGenericMapsUri(url)
@@ -166,7 +173,7 @@ class ChooserActivity : ComponentActivity() {
                 timeLeft--
             }
             if (isAutoOpenEnabled) {
-                executeAutoOpen(url, title, preferredApp)
+                executeAutoOpen(url, preferredApp)
                 onDismiss()
             }
         }
@@ -258,8 +265,7 @@ class ChooserActivity : ComponentActivity() {
                                     onClick = { 
                                         isAutoOpenEnabled = false
                                         lifecycleScope.launch {
-                                            val targetUri = MapsUtils.getWazeUriResolvingShortLink(url, title)
-                                            onOptionSelected("com.waze", targetUri)
+                                            onOptionSelected("com.waze", wazeUri.await())
                                         }
                                     }
                                 )
