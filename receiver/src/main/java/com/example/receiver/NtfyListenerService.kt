@@ -152,8 +152,8 @@ class NtfyListenerService : Service() {
             launch { repository.showStopButton.collect { prefShowStopBtn = it } }
             launch { repository.showReopenButton.collect { prefShowReopenBtn = it } }
             
-            val topic = repository.ntfyTopic.first()
-            val server = repository.ntfyServer.first()
+            val topic = repository.ntfyTopic.first().trim()
+            val server = ReceiverRepository.normalizeServerUrl(repository.ntfyServer.first())
             val secretKey = repository.secretKey.first()
             val copyToClipboard = repository.copyToClipboard.first()
             val persistedLastTime = repository.lastMessageTime.first()
@@ -169,6 +169,10 @@ class NtfyListenerService : Service() {
 
             if (topic.isBlank()) {
                 updateNotification(getString(R.string.notification_topic_not_set))
+                return@launch
+            }
+            if (!ReceiverRepository.isValidTopic(topic)) {
+                updateNotification(getString(R.string.notification_topic_invalid))
                 return@launch
             }
 
@@ -503,7 +507,9 @@ class NtfyListenerService : Service() {
         // THE FIX: Title is now static "In ascolto", Content shows the last link name
         val isSpecialStatus = content == getString(R.string.notification_restarting) ||
             content == getString(R.string.notification_conn_lost) ||
-            content == getString(R.string.notification_message_rejected)
+            content == getString(R.string.notification_message_rejected) ||
+            content == getString(R.string.notification_topic_not_set) ||
+            content == getString(R.string.notification_topic_invalid)
         
         val notificationTitle = if (isSpecialStatus) {
             content

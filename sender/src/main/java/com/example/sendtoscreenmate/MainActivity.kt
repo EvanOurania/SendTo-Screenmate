@@ -113,7 +113,8 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
     }
 
-    fun triggerManualSend(data: String) {
+    /** [onSent] runs only if the message was actually delivered. */
+    fun triggerManualSend(data: String, onSent: () -> Unit) {
         val url = extractUrl(data)
         var title = ""
         var finalData = data
@@ -133,22 +134,22 @@ class MainActivity : ComponentActivity() {
         } else {
             title = "Text Message"
         }
-        performSendData(finalData, title)
+        performSendData(finalData, title, onSent)
     }
 
-    fun triggerAddressSend(data: String) {
+    fun triggerAddressSend(data: String, onSent: () -> Unit) {
         val isMapsLink = MapsUtils.isGoogleMapsLink(data)
         val isGeo = data.trim().startsWith("geo:", ignoreCase = true)
         
         if (isMapsLink || isGeo) {
-            triggerManualSend(data)
+            triggerManualSend(data, onSent)
         } else {
             val geoUri = "geo:0,0?q=${Uri.encode(data)}"
-            performSendData(geoUri, data.take(50))
+            performSendData(geoUri, data.take(50), onSent)
         }
     }
 
-    private fun performSendData(data: String, title: String) {
+    private fun performSendData(data: String, title: String, onSent: () -> Unit) {
         val json = JSONObject().apply {
             put("url", data)
             put("title", title)
@@ -162,13 +163,13 @@ class MainActivity : ComponentActivity() {
             val serviceType = repository.serviceType.first()
             if (serviceType == WebhookRepository.SERVICE_MACRODROID) {
                 val webhookUrl = repository.webhookUrl.first()
-                sendToMacroDroid(webhookUrl, data)
+                sendToMacroDroid(webhookUrl, data, onSent)
             } else {
                 val server = repository.ntfyServer.first()
                 val topic = repository.ntfyTopic.first()
                 val secretKey = repository.secretKey.first()
                 val encryptionActive = repository.encryptionEnabled.first()
-                sendToNtfy(server, topic, secretKey, encryptionActive, finalPayload)
+                sendToNtfy(server, topic, secretKey, encryptionActive, finalPayload, onSent)
             }
         }
     }
@@ -215,7 +216,7 @@ class MainActivity : ComponentActivity() {
         return ""
     }
 
-    private fun sendToMacroDroid(webhookUrl: String, text: String) {
+    private fun sendToMacroDroid(webhookUrl: String, text: String, onSent: () -> Unit) {
         lifecycleScope.launch {
             val success = withContext(Dispatchers.IO) {
                 try {
@@ -227,30 +228,42 @@ class MainActivity : ComponentActivity() {
                     } else false
                 } catch (_: Exception) { false }
             }
-            if (success) Toast.makeText(this@MainActivity, R.string.sent_ntfy, Toast.LENGTH_SHORT).show()
-            else Toast.makeText(this@MainActivity, R.string.error_ntfy, Toast.LENGTH_SHORT).show()
+            if (success) {
+                Toast.makeText(this@MainActivity, R.string.sent_ntfy, Toast.LENGTH_SHORT).show()
+                onSent()
+            } else {
+                Toast.makeText(this@MainActivity, R.string.error_ntfy, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
-    private fun sendToNtfy(server: String, topic: String, secretKey: String, encryptionEnabled: Boolean, payload: String) {
+    private fun sendToNtfy(server: String, topic: String, secretKey: String, encryptionEnabled: Boolean, payload: String, onSent: () -> Unit) {
         // Never fall back to plain text: the Receiver ignores messages it cannot decrypt
         if (encryptionEnabled && secretKey.isBlank()) {
             Toast.makeText(this, R.string.missing_key_error, Toast.LENGTH_LONG).show()
+            return
+        }
+        val cleanTopic = topic.trim()
+        if (!WebhookRepository.isValidTopic(cleanTopic)) {
+            Toast.makeText(this, R.string.invalid_topic_error, Toast.LENGTH_LONG).show()
             return
         }
         lifecycleScope.launch {
             val success = withContext(Dispatchers.IO) {
                 try {
                     val client = OkHttpClient()
-                    val baseUrl = if (server.endsWith("/")) server else "$server/"
-                    val finalUrl = "$baseUrl$topic"
+                    val finalUrl = "${WebhookRepository.normalizeServerUrl(server)}/$cleanTopic"
                     val encryptedPayload = if (encryptionEnabled) CryptoManager.encrypt(payload, secretKey) else payload
                     val request = Request.Builder().url(finalUrl).post(encryptedPayload.toRequestBody("text/plain".toMediaType())).build()
                     client.newCall(request).execute().use { it.isSuccessful }
                 } catch (_: Exception) { false }
             }
-            if (success) Toast.makeText(this@MainActivity, R.string.sent_ntfy, Toast.LENGTH_SHORT).show()
-            else Toast.makeText(this@MainActivity, R.string.error_ntfy, Toast.LENGTH_SHORT).show()
+            if (success) {
+                Toast.makeText(this@MainActivity, R.string.sent_ntfy, Toast.LENGTH_SHORT).show()
+                onSent()
+            } else {
+                Toast.makeText(this@MainActivity, R.string.error_ntfy, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 }
@@ -355,8 +368,8 @@ fun SendScreen(navigationPadding: PaddingValues) {
                         Button(
                             onClick = {
                                 if (manualText.isNotBlank()) {
-                                    (context as MainActivity).triggerManualSend(manualText)
-                                    manualText = ""
+                                    // Keep the text if sending fails, so it can be retried
+                                    (context as MainActivity).triggerManualSend(manualText) { manualText = "" }
                                 }
                             },
                             modifier = Modifier.weight(1f).height(64.dp),
@@ -371,8 +384,7 @@ fun SendScreen(navigationPadding: PaddingValues) {
                         Button(
                             onClick = {
                                 if (manualText.isNotBlank()) {
-                                    (context as MainActivity).triggerAddressSend(manualText)
-                                    manualText = ""
+                                    (context as MainActivity).triggerAddressSend(manualText) { manualText = "" }
                                 }
                             },
                             modifier = Modifier.weight(1f).height(64.dp),

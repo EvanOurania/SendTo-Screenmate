@@ -36,6 +36,17 @@ class ReceiverRepository(val context: Context) {
         const val APP_MAPS = "maps"
         const val APP_WAZE = "waze"
         const val APP_OTHER = "other"
+
+        private val TOPIC_REGEX = Regex("^[-_A-Za-z0-9]{1,64}$")
+
+        /** ntfy topic names may only contain letters, digits, '-' and '_' (max 64 characters). */
+        fun isValidTopic(topic: String): Boolean = TOPIC_REGEX.matches(topic)
+
+        /** Adds a missing "https://" and drops a trailing slash, so that e.g. "ntfy.sh" works too. */
+        fun normalizeServerUrl(server: String): String {
+            val trimmed = server.trim().trimEnd('/')
+            return if ("://" in trimmed) trimmed else "https://$trimmed"
+        }
     }
 
     val ntfyTopic: Flow<String> = context.dataStore.data

@@ -26,6 +26,17 @@ class WebhookRepository(val context: Context) {
         const val DEFAULT_NTFY_SERVER = "https://ntfy.sh"
         const val SERVICE_MACRODROID = "macrodroid"
         const val SERVICE_NTFY = "ntfy"
+
+        private val TOPIC_REGEX = Regex("^[-_A-Za-z0-9]{1,64}$")
+
+        /** ntfy topic names may only contain letters, digits, '-' and '_' (max 64 characters). */
+        fun isValidTopic(topic: String): Boolean = TOPIC_REGEX.matches(topic)
+
+        /** Adds a missing "https://" and drops a trailing slash, so that e.g. "ntfy.sh" works too. */
+        fun normalizeServerUrl(server: String): String {
+            val trimmed = server.trim().trimEnd('/')
+            return if ("://" in trimmed) trimmed else "https://$trimmed"
+        }
     }
 
     val webhookUrl: Flow<String> = context.dataStore.data

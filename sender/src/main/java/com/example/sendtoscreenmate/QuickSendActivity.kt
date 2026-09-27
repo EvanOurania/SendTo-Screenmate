@@ -216,12 +216,17 @@ class QuickSendActivity : ComponentActivity() {
             finish()
             return
         }
+        val cleanTopic = topic.trim()
+        if (!WebhookRepository.isValidTopic(cleanTopic)) {
+            Toast.makeText(this, R.string.invalid_topic_error, Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
         lifecycleScope.launch {
             val success = withContext(Dispatchers.IO) {
                 try {
                     val client = OkHttpClient()
-                    val baseUrl = if (server.endsWith("/")) server else "$server/"
-                    val finalUrl = "$baseUrl$topic"
+                    val finalUrl = "${WebhookRepository.normalizeServerUrl(server)}/$cleanTopic"
                     val encryptedPayload = if (encryptionEnabled) CryptoManager.encrypt(payload, secretKey) else payload
                     val request = Request.Builder().url(finalUrl).post(encryptedPayload.toRequestBody("text/plain".toMediaType())).build()
                     client.newCall(request).execute().use { it.isSuccessful }
