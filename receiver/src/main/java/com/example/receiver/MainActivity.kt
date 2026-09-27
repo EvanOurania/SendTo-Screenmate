@@ -217,6 +217,15 @@ fun HistoryScreen(navigationPadding: PaddingValues) {
     }
 }
 
+private fun startListenerService(context: Context) {
+    val intent = Intent(context, NtfyListenerService::class.java)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        context.startForegroundService(intent)
+    } else {
+        context.startService(intent)
+    }
+}
+
 private fun copyText(context: Context, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val clip = ClipData.newPlainText("received text", text)
@@ -359,6 +368,29 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
     LaunchedEffect(savedAutoOpenGeoApp) { autoOpenGeoApp = savedAutoOpenGeoApp }
     LaunchedEffect(savedAutoOpenDelay) { autoOpenDelay = savedAutoOpenDelay }
 
+    var showQr by remember { mutableStateOf(false) }
+
+    // New topic and key: start listening right away and show the QR code to pair the Sender
+    fun generatePairing() {
+        val newTopic = "sm_" + UUID.randomUUID().toString().replace("-", "").take(16)
+        val newKey = CryptoManager.generateSecretKey()
+
+        // Update local states immediately
+        topic = newTopic
+        secretKey = newKey
+        showQr = true
+
+        scope.launch {
+            repository.saveNtfyConfig(newTopic, server)
+            repository.saveSecretKey(newKey)
+            // A running service reconnects by itself when the settings change
+            if (isServiceRunning != true) {
+                startListenerService(context)
+                Toast.makeText(context, R.string.save_success, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     if (showGenerateDialog) {
         AlertDialog(
             onDismissRequest = { showGenerateDialog = false },
@@ -367,17 +399,7 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
             confirmButton = {
                 Button(
                     onClick = {
-                        val newTopic = "sm_" + UUID.randomUUID().toString().replace("-", "").take(16)
-                        val newKey = CryptoManager.generateSecretKey()
-                        
-                        // Update local states immediately
-                        topic = newTopic
-                        secretKey = newKey
-                        
-                        scope.launch { 
-                            repository.saveNtfyConfig(newTopic, server)
-                            repository.saveSecretKey(newKey)
-                        }
+                        generatePairing()
                         showGenerateDialog = false
                     }
                 ) {
@@ -461,12 +483,7 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
                                         scope.launch {
                                             repository.saveNtfyConfig(topic, server)
                                             repository.saveSecretKey(secretKey)
-                                            val intent = Intent(context, NtfyListenerService::class.java)
-                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                                context.startForegroundService(intent)
-                                            } else {
-                                                context.startService(intent)
-                                            }
+                                            startListenerService(context)
                                             Toast.makeText(context, R.string.save_success, Toast.LENGTH_SHORT).show()
                                         }
                                     },
@@ -584,7 +601,10 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     Button(
-                                        onClick = { showGenerateDialog = true },
+                                        onClick = {
+                                            // Nothing to invalidate yet on first setup: no need to warn
+                                            if (topic.isBlank() && secretKey.isBlank()) generatePairing() else showGenerateDialog = true
+                                        },
                                         modifier = Modifier.weight(1f).height(64.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                         shape = RoundedCornerShape(16.dp)
@@ -620,7 +640,6 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
 
                                 // The QR code contains the secret key: show it only while pairing a Sender
                                 if (topic.isNotBlank() && secretKey.isNotBlank()) {
-                                    var showQr by remember { mutableStateOf(false) }
                                     if (showQr) {
                                         val qrContent = "$server|$topic|$secretKey"
                                         val qrBitmap = remember(qrContent) {
