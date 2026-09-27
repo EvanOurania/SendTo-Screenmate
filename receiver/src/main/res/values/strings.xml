@@ -5,10 +5,12 @@
     <string name="ntfy_server_label">Server (e.g., https://ntfy.sh)</string>
     <string name="ntfy_topic_label">Topic</string>
     <string name="stop_ntfy">Stop Listening</string>
-    <string name="ntfy_instructions"><![CDATA[<b>Pairing Steps:</b><br><br>
-1. Click <b>\"Generate Topic and Key\"</b> to create your unique secure pairing ID.<br><br>
-2. <b>Permissions (Required):</b> Ensure <b>Overlay</b> and <b>Battery</b> buttons above are gone (grant them if visible).<br><br>
-3. <b>Start:</b> Click <b>\"Start\"</b>. The green status will confirm the system is ready.]]></string>
+    <string name="ntfy_instructions"><![CDATA[<b>How to set up:</b><br><br>
+1. <b>Permissions:</b> if the <b>\"Enable Overlay\"</b> and <b>\"Disable Battery Optimization\"</b> buttons appear at the top, tap them and grant the permissions. They let links open by themselves and keep the listener always running.<br><br>
+2. <b>Pairing:</b> tap <b>\"Generate Topic and Key\"</b>. The service starts by itself and the QR code appears.<br><br>
+3. <b>On your phone:</b> open <b>SendTo ScreenMate</b>, go to <b>Sending Settings</b>, tap <b>\"Scan Receiver QR\"</b> and point the camera at the QR code.<br><br>
+4. <b>Use:</b> in Google Maps pick a place or a route, tap <b>Share</b> and choose <b>SendTo ScreenMate</b>. It opens here automatically with the navigator chosen in <b>Auto-Open Settings</b>.<br><br>
+To pair more phones later, tap <b>\"Show QR code for the Sender\"</b>.]]></string>
     <string name="enable_overlay">Enable Overlay</string>
     <string name="topic_copied">Copy topic to clipboard</string>
     <string name="text_copied_toast">Copied to clipboard!</string>

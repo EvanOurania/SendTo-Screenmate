@@ -5,10 +5,12 @@
     <string name="ntfy_server_label">Server (es. https://ntfy.sh)</string>
     <string name="ntfy_topic_label">Topic (Argomento)</string>
     <string name="stop_ntfy">Interrompi Ascolto</string>
-    <string name="ntfy_instructions"><![CDATA[<b>Passaggi per l\'accoppiamento:</b><br><br>
-1. Clicca su <b>\"Genera Topic e Chiave\"</b> per creare il tuo ID di accoppiamento sicuro.<br><br>
-2. <b>Permessi (Richiesti):</b> Assicurati che i tasti <b>Sovrapposizione</b> e <b>Batteria</b> qui sopra siano spariti.<br><br>
-3. <b>Avvia:</b> Clicca su <b>\"Avvia\"</b>. Lo stato verde confermerà che il sistema è pronto.]]></string>
+    <string name="ntfy_instructions"><![CDATA[<b>Come configurare:</b><br><br>
+1. <b>Permessi:</b> se in alto compaiono i pulsanti <b>\"Attiva Sovrapposizione\"</b> e <b>\"Disabilita Ottimizzazione Batteria\"</b>, premili e concedi i permessi. Servono per aprire i link in automatico e per restare sempre in ascolto.<br><br>
+2. <b>Accoppiamento:</b> premi <b>\"Genera Topic e Chiave\"</b>. Il servizio si avvia da solo e compare il QR code.<br><br>
+3. <b>Sul telefono:</b> apri <b>SendTo ScreenMate</b>, vai in <b>Impostazioni Invio</b>, premi <b>\"Scansiona QR Ricevitore\"</b> e inquadra il QR code.<br><br>
+4. <b>Uso:</b> in Google Maps scegli un luogo o un percorso, premi <b>Condividi</b> e seleziona <b>SendTo ScreenMate</b>. Qui si aprirà in automatico con il navigatore scelto in <b>Apertura Automatica</b>.<br><br>
+Per accoppiare altri telefoni in seguito, premi <b>\"Mostra QR code per il Sender\"</b>.]]></string>
     <string name="enable_overlay">Attiva Sovrapposizione</string>
     <string name="topic_copied">Copia topic negli appunti</string>
     <string name="text_copied_toast">Copiato negli appunti!</string>

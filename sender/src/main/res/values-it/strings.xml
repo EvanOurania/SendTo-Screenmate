@@ -14,9 +14,9 @@
     <string name="ntfy_server_label">Server (es: https://ntfy.sh)</string>
     <string name="ntfy_topic_label">Topic</string>
     <string name="ntfy_instructions"><![CDATA[<b>Passaggi per l\'accoppiamento:</b><br><br>
-1. Sul dispositivo <b>Ricevitore</b>, clicca su \"Genera Topic e Chiave\".<br><br>
-2. Su questo dispositivo, clicca su <b>\"Scansiona QR Ricevitore\"</b> e inquadra il codice sul ricevitore.<br><br>
-3. Le app si accoppieranno istantaneamente con supporto alla crittografia E2E.]]></string>
+1. Sul dispositivo <b>Ricevitore</b>, premi <b>\"Genera Topic e Chiave\"</b> (se l\'hai già fatto, premi <b>\"Mostra QR code per il Sender\"</b>).<br><br>
+2. Su questo telefono, premi <b>\"Scansiona QR Ricevitore\"</b> qui sopra e inquadra il QR code sul ricevitore.<br><br>
+3. Fatto: in Google Maps premi <b>Condividi</b> su un luogo o un percorso e scegli <b>SendTo ScreenMate</b>.]]></string>
 
     <string name="sending_progress">Invio…</string>
     <string name="sent_ntfy">Inviato a Screenmate!</string>

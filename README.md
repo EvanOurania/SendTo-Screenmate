@@ -33,17 +33,16 @@ This project consists of two separate applications: **Sender** (SendTo ScreenMat
 
 ### Step 2: Configure the Receiver
 1. Open the **Receiver** app on your secondary device.
-2. Click **"Generate Random Topic"** to create a unique, secure connection ID.
-3. **Grant Permissions (Critical):**
+2. **Grant Permissions (Critical):**
    - Click **"Enable Overlay"** and allow "Display over other apps". This allows the app to jump from the background to open Waze or Maps.
    - Click **"Disable Battery Optimization"** to prevent Android from killing the background listener.
-4. Click **"Start"**. You will see a green status dot saying "Service is running".
+3. Click **"Generate Topic and Key"** to create a unique, secure connection ID. The listener starts automatically (green status dot saying "Service is running") and the pairing QR code appears.
 
 ### Step 3: Configure the Sender
 1. Open **SendTo ScreenMate** on your primary phone.
 2. Tap **"Scan Receiver QR"** and point your camera at the QR code displayed on the Receiver device.
-3. The server and topic will be filled automatically.
-4. Repeat these steps for every other phones you might have.
+3. The server, topic and encryption key will be filled automatically.
+4. Repeat these steps for every other phone you might have. To show the QR code again, tap **"Show QR code for the Sender"** on the Receiver.
 
 ### Step 4: Start Sharing!
 - Open **Google Maps** on your phone, pick a place, tap **"Share"**, and select **SendTo ScreenMate**.

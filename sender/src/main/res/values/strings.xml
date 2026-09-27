@@ -14,9 +14,9 @@
     <string name="ntfy_server_label">Server (e.g., https://ntfy.sh)</string>
     <string name="ntfy_topic_label">Topic</string>
     <string name="ntfy_instructions"><![CDATA[<b>Pairing Steps:</b><br><br>
-1. On the <b>ScreenMate Receiver</b> device, click \"Generate Topic and Key\".<br><br>
-2. On this device, click <b>\"Scan Receiver QR\"</b> and point at the code on the Receiver screen.<br><br>
-3. The apps will pair instantly with E2E encryption support.]]></string>
+1. On the <b>Receiver</b> device, tap <b>\"Generate Topic and Key\"</b> (if you already did, tap <b>\"Show QR code for the Sender\"</b>).<br><br>
+2. On this phone, tap <b>\"Scan Receiver QR\"</b> above and point the camera at the QR code on the Receiver.<br><br>
+3. Done: in Google Maps tap <b>Share</b> on a place or a route and choose <b>SendTo ScreenMate</b>.]]></string>
 
     <string name="sending_progress">Sending…</string>
     <string name="sent_ntfy">Sent to Screenmate!</string>
