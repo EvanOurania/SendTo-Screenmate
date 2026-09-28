@@ -100,25 +100,17 @@ To pair more phones later, tap **"Show QR code for the Sender"** on the Receiver
 - **Tests and lint:** `./gradlew testDebugUnitTest lintDebug`
 
 ### 🚢 Releasing
-Every push runs the unit tests and lint on GitHub Actions (`.github/workflows/build.yml`). Pushing a tag that starts with `v` also builds both APKs, signs them and publishes them as a GitHub release.
+GitHub Actions (`.github/workflows/build.yml`) runs the unit tests and lint on every push to `main` and every pull request. Pushing a `v*` tag also builds both APKs, signs them and publishes them as a GitHub release.
 
-**One-time setup:** in the repository go to *Settings → Secrets and variables → Actions* and add these secrets. Always sign with the same keystore: Android refuses to install an update signed with a different key.
-- `SIGNING_KEYSTORE_BASE64`: the keystore file encoded in Base64 (on macOS: `base64 -i my-keystore.jks | pbcopy`)
-- `SIGNING_STORE_PASSWORD`: the keystore password
-- `SIGNING_KEY_ALIAS`: the key alias
-- `SIGNING_KEY_PASSWORD`: the key password
+**Signing:** the workflow reads the keystore from these repository secrets:
+- `SIGNING_KEYSTORE_BASE64`: the keystore file, Base64-encoded
+- `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD`
 
-**Builds from Android Studio:** by default they are signed with Android Studio's debug key, so Android refuses to install them over an APK from the Releases page (and the other way around). To sign them with the release key too, add these lines to `~/.gradle/gradle.properties` on your computer (outside the project, so they never end up on GitHub):
-```properties
-SIGNING_KEYSTORE_PATH=/full/path/to/my-keystore.jks
-SIGNING_STORE_PASSWORD=...
-SIGNING_KEY_ALIAS=...
-SIGNING_KEY_PASSWORD=...
-```
+To sign local builds with the same key, so they install over the released APKs, put the same values in `~/.gradle/gradle.properties`, with `SIGNING_KEYSTORE_PATH` (the keystore's path) instead of `SIGNING_KEYSTORE_BASE64`.
 
 **For each release:**
-1. Increase `versionCode` and `versionName` in `receiver/build.gradle.kts` and `sender/build.gradle.kts`, then commit.
-2. Tag and push: `git tag v1.2.0 && git push origin main v1.2.0`
+1. Bump `versionCode` and `versionName` in both `sender/build.gradle.kts` and `receiver/build.gradle.kts` (the two apps share the same version), then commit.
+2. Push a tag named `v` + `versionName`: `git tag v1.2.2 && git push origin main v1.2.2`. The tag names the release and its APKs; nothing checks it against `versionName`.
 
 ---
-*Created with ❤️ by AI for a seamless Android experience.*
+*Created by AI*
