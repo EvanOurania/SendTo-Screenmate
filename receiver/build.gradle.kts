@@ -12,8 +12,8 @@ android {
         applicationId = "io.github.evanourania.screenmate.receiver"
         minSdk = 24
         targetSdk = 37
-        versionCode = 116
-        versionName = "1.2.2"
+        versionCode = 117
+        versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
