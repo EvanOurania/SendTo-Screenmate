@@ -23,12 +23,12 @@ data class AutoOpenSettings(val preferredApp: String, val delaySeconds: Int)
 class NavigatorLauncher(
     private val context: Context,
     private val url: String,
-    title: String,
+    private val title: String,
     scope: CoroutineScope,
 ) {
-    // Prepared in the background right away (it may need to expand a short link over the network),
-    // so Waze opens without delay when the countdown ends or it's tapped
-    private val wazeUri: Deferred<String> = scope.async { MapsUtils.getWazeUriResolvingShortLink(url, title) }
+    // Expanded in the background right away (a short link needs the network), so the navigator
+    // opens without delay when the countdown ends or it's tapped
+    private val fullUrl: Deferred<String> = scope.async { MapsUtils.expandShortLink(url) }
 
     fun isInstalled(packageName: String): Boolean = try {
         context.packageManager.getPackageInfo(packageName, 0)
@@ -45,16 +45,17 @@ class NavigatorLauncher(
         }
     }
 
-    fun openInMaps() {
-        openWithPackage(MapsUtils.getMapsUri(url), MAPS_PACKAGE)
+    suspend fun openInMaps() {
+        openWithPackage(MapsUtils.getMapsUri(url, fullUrl.await()), MAPS_PACKAGE)
     }
 
     suspend fun openInWaze() {
-        openWithPackage(wazeUri.await(), WAZE_PACKAGE)
+        openWithPackage(MapsUtils.getWazeUri(url, fullUrl.await(), title), WAZE_PACKAGE)
     }
 
-    fun openInOtherApp() {
-        openWithPackage(MapsUtils.getGenericMapsUri(url), null)
+    suspend fun openInOtherApp() {
+        // The full link: on Android 12+ Google Play services opens short links, and always in Google Maps
+        openWithPackage(MapsUtils.getGenericMapsUri(fullUrl.await()), null)
     }
 
     /** Copies the link, or just the address for a geo: link. */

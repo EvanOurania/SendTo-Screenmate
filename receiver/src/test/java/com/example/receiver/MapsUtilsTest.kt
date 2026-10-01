@@ -113,6 +113,37 @@ class MapsUtilsTest {
         assertEquals("https://maps.app.goo.gl/abc123", MapsUtils.getMapsUri("https://maps.app.goo.gl/abc123"))
     }
 
+    // Where a real maps.app.goo.gl link to a place shared from the app redirects to: no coordinates
+    private val shortPlaceUrl = "https://maps.app.goo.gl/v4MDUi9mCrh3mNjz8"
+    private val fullPlaceUrl = "https://maps.google.com?q=Caf%C3%A9+Heinemann,+Bismarckstra%C3%9Fe+91,+41061+M%C3%B6nchengladbach" +
+        "&ftid=0x47b8ac99b0a68bdd:0x8024629be3e9996&entry=gps"
+
+    @Test
+    fun testMapsUriForExpandedShortLink() {
+        // Google Maps can't open short links, but it can open the full link, whatever it contains
+        assertEquals(fullPlaceUrl, MapsUtils.getMapsUri(shortPlaceUrl, fullPlaceUrl))
+        // Not expanded (e.g. offline)
+        assertEquals(shortPlaceUrl, MapsUtils.getMapsUri(shortPlaceUrl, shortPlaceUrl))
+    }
+
+    @Test
+    fun testWazeUriForExpandedShortLink() {
+        // A full link without coordinates is no use to Waze: it gets the short link
+        assertEquals(
+            "waze://?q=https%3A%2F%2Fmaps.app.goo.gl%2Fv4MDUi9mCrh3mNjz8&navigate=yes",
+            MapsUtils.getWazeUri(shortPlaceUrl, fullPlaceUrl, "Café Heinemann")
+        )
+        // A dropped pin's full link has its coordinates
+        assertEquals(
+            "waze://?ll=39.920439,116.331538&navigate=yes",
+            MapsUtils.getWazeUri(
+                "https://maps.app.goo.gl/FP3EV7tTUKYbmcVp7",
+                "https://www.google.com/maps/search/39.920439,+116.331538?entry=tts",
+                "Dropped pin"
+            )
+        )
+    }
+
     @Test
     fun testIsDroppedPinTitle() {
         assertTrue(MapsUtils.isDroppedPinTitle("Dropped pin"))

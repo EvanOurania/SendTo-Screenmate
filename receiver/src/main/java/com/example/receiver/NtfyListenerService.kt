@@ -379,11 +379,12 @@ class NtfyListenerService : Service() {
                             OpenAction.NAVIGATOR -> {
                                 // Build the final URI for direct launch
                                 val targetUri = if (preferredApp == ReceiverRepository.APP_WAZE) {
-                                    MapsUtils.getWazeUriResolvingShortLink(rawMapsUrl, displayTitle)
+                                    MapsUtils.getWazeUri(rawMapsUrl, MapsUtils.expandShortLink(rawMapsUrl), displayTitle)
                                 } else if (preferredApp == ReceiverRepository.APP_MAPS) {
-                                    MapsUtils.getMapsUri(rawMapsUrl)
+                                    MapsUtils.getMapsUri(rawMapsUrl, MapsUtils.expandShortLink(rawMapsUrl))
                                 } else {
-                                    finalUrl
+                                    // As in NavigatorLauncher.openInOtherApp
+                                    MapsUtils.expandShortLink(finalUrl)
                                 }
 
                                 // Target the chosen app explicitly, otherwise a geo: link may open in another navigator

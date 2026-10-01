@@ -68,15 +68,26 @@ object MapsUtils {
     }
 
     /**
-     * Like [getWazeUri], but first expands Google Maps short links so Waze gets the exact destination.
-     * Falls back to the original link when the expanded one contains neither coordinates nor a route.
+     * The full link a Google Maps short link redirects to, or [url] itself when it isn't a short link
+     * or can't be expanded (e.g. offline).
      */
-    suspend fun getWazeUriResolvingShortLink(url: String, title: String): String {
-        val resolvedUrl = withContext(Dispatchers.IO) { resolveShortLink(url) }
-        val isUsable = resolvedUrl != url &&
-            (extractDirectionsDestination(resolvedUrl) != null || extractCoordinates(resolvedUrl) != null)
-        return getWazeUri(if (isUsable) resolvedUrl else url, title)
+    suspend fun expandShortLink(url: String): String = withContext(Dispatchers.IO) { resolveShortLink(url) }
+
+    /**
+     * Like [getWazeUri], for a link and its [fullUrl] (see [expandShortLink]): the full link gives Waze
+     * the exact destination when it contains coordinates or a route, otherwise the original link is used.
+     */
+    fun getWazeUri(url: String, fullUrl: String, title: String): String {
+        val isUsable = fullUrl != url &&
+            (extractDirectionsDestination(fullUrl) != null || extractCoordinates(fullUrl) != null)
+        return getWazeUri(if (isUsable) fullUrl else url, title)
     }
+
+    /**
+     * Like [getMapsUri], for a link and its [fullUrl] (see [expandShortLink]). Google Maps can't open
+     * short links (on Android, Google Play services does), so it gets the full link as it is.
+     */
+    fun getMapsUri(url: String, fullUrl: String): String = if (fullUrl != url) fullUrl else getMapsUri(url)
 
     /**
      * The destination of a Google Maps directions link: its coordinates ("lat,lon") when they can
@@ -214,7 +225,7 @@ object MapsUtils {
 
     /**
      * Formats the URI to open in Google Maps: a pin on the place, or on the route's destination,
-     * when the link contains it, otherwise the link itself (e.g. a short link, which Maps resolves).
+     * when the link contains it, otherwise the link itself.
      */
     fun getMapsUri(url: String): String {
         // Routes: the destination only, as in getWazeUri. The map center (@...) lies somewhere along the route.
