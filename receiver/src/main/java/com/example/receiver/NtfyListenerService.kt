@@ -383,7 +383,7 @@ class NtfyListenerService : Service() {
                                 } else if (preferredApp == ReceiverRepository.APP_MAPS) {
                                     MapsUtils.getMapsUri(rawMapsUrl, MapsUtils.expandShortLink(rawMapsUrl))
                                 } else {
-                                    // As in NavigatorLauncher.openInOtherApp
+                                    // As in NavigatorLauncher.openInApp
                                     MapsUtils.expandShortLink(finalUrl)
                                 }
 
@@ -391,7 +391,7 @@ class NtfyListenerService : Service() {
                                 val targetPackage = when (preferredApp) {
                                     ReceiverRepository.APP_MAPS -> "com.google.android.apps.maps"
                                     ReceiverRepository.APP_WAZE -> "com.waze"
-                                    else -> null
+                                    else -> preferredApp // Another app's package name
                                 }
                                 val directIntent = Intent(Intent.ACTION_VIEW, targetUri.toUri()).apply {
                                     // MINIMAL FLAGS: NEW_TASK is required from service, SINGLE_TOP preserves the split-screen activity

@@ -61,7 +61,7 @@ Per accoppiare altri telefoni in seguito, premi <b>\"Mostra QR code per il Sende
     <string name="clear_history_confirm_title">Cancellare la Cronologia?</string>
     <string name="clear_history_confirm_msg">Sei sicuro di voler eliminare tutti gli elementi dalla cronologia? L\'azione non è reversibile.</string>
 
-    <string name="section_auto_open">Apertura Automatica</string>
+    <string name="section_auto_open">Navigatori e Apertura Automatica</string>
     <string name="auto_open_maps_label">Per i link Google Maps:</string>
     <string name="auto_open_geo_label">Per indirizzi/coordinate:</string>
     <string name="auto_open_delay_label">Ritardo: %1$d secondi (0 = istantaneo)</string>
@@ -72,7 +72,8 @@ Per accoppiare altri telefoni in seguito, premi <b>\"Mostra QR code per il Sende
     <string name="chooser_title">Scegli Navigatore</string>
     <string name="app_maps">Google Maps</string>
     <string name="app_waze">Waze</string>
-    <string name="app_other">App predefinita</string>
+    <string name="chooser_apps_show">Mostra</string>
+    <string name="chooser_apps_default">Predefinita</string>
     <string name="btn_copy">Copia</string>
     <string name="pref_notification_buttons">Pulsanti della Notifica</string>
     <string name="pref_show_restart">Mostra pulsante Riavvia</string>

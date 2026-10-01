@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -26,6 +27,9 @@ class ReceiverRepository(val context: Context) {
         val LAST_MESSAGE_ID_KEY = stringPreferencesKey("last_message_id")
         val AUTO_OPEN_MAPS_APP_KEY = stringPreferencesKey("auto_open_maps_app")
         val AUTO_OPEN_GEO_APP_KEY = stringPreferencesKey("auto_open_geo_app")
+        // The apps shown in the chooser
+        val CHOOSER_MAPS_APPS_KEY = stringSetPreferencesKey("chooser_maps_apps")
+        val CHOOSER_GEO_APPS_KEY = stringSetPreferencesKey("chooser_geo_apps")
         val AUTO_OPEN_DELAY_KEY = intPreferencesKey("auto_open_delay")
         
         val SHOW_RESTART_BUTTON_KEY = booleanPreferencesKey("show_restart_button")
@@ -36,10 +40,14 @@ class ReceiverRepository(val context: Context) {
         const val APP_NONE = "none"
         const val APP_MAPS = "maps"
         const val APP_WAZE = "waze"
-        const val APP_OTHER = "other"
+        // Any other app is saved by its package name
+
+        // "Let Android pick the app", until v1.2.2: replaced by choosing the app
+        private const val LEGACY_APP_OTHER = "other"
 
         // Defaults used until the user changes a setting (e.g. on first launch)
         const val DEFAULT_AUTO_OPEN_APP = APP_WAZE
+        val DEFAULT_CHOOSER_APPS = setOf(APP_MAPS, APP_WAZE)
         const val DEFAULT_AUTO_OPEN_DELAY = 5 // seconds
         const val DEFAULT_COPY_TO_CLIPBOARD = true
         const val DEFAULT_ONLY_ENCRYPTED = false
@@ -111,12 +119,22 @@ class ReceiverRepository(val context: Context) {
 
     val autoOpenMapsApp: Flow<String> = context.dataStore.data
         .map { preferences ->
-            preferences[AUTO_OPEN_MAPS_APP_KEY] ?: DEFAULT_AUTO_OPEN_APP
+            (preferences[AUTO_OPEN_MAPS_APP_KEY] ?: DEFAULT_AUTO_OPEN_APP).takeIf { it != LEGACY_APP_OTHER } ?: APP_NONE
         }
 
     val autoOpenGeoApp: Flow<String> = context.dataStore.data
         .map { preferences ->
-            preferences[AUTO_OPEN_GEO_APP_KEY] ?: DEFAULT_AUTO_OPEN_APP
+            (preferences[AUTO_OPEN_GEO_APP_KEY] ?: DEFAULT_AUTO_OPEN_APP).takeIf { it != LEGACY_APP_OTHER } ?: APP_NONE
+        }
+
+    val chooserMapsApps: Flow<Set<String>> = context.dataStore.data
+        .map { preferences ->
+            preferences[CHOOSER_MAPS_APPS_KEY] ?: DEFAULT_CHOOSER_APPS
+        }
+
+    val chooserGeoApps: Flow<Set<String>> = context.dataStore.data
+        .map { preferences ->
+            preferences[CHOOSER_GEO_APPS_KEY] ?: DEFAULT_CHOOSER_APPS
         }
 
     val autoOpenDelay: Flow<Int> = context.dataStore.data
@@ -188,6 +206,18 @@ class ReceiverRepository(val context: Context) {
     suspend fun saveAutoOpenGeoApp(app: String) {
         context.dataStore.edit { preferences ->
             preferences[AUTO_OPEN_GEO_APP_KEY] = app
+        }
+    }
+
+    suspend fun saveChooserMapsApps(apps: Set<String>) {
+        context.dataStore.edit { preferences ->
+            preferences[CHOOSER_MAPS_APPS_KEY] = apps
+        }
+    }
+
+    suspend fun saveChooserGeoApps(apps: Set<String>) {
+        context.dataStore.edit { preferences ->
+            preferences[CHOOSER_GEO_APPS_KEY] = apps
         }
     }
 

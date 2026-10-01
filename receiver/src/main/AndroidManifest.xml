@@ -17,6 +17,11 @@
     <queries>
         <package android:name="com.google.android.apps.maps" />
         <package android:name="com.waze" />
+        <!-- The other map apps, for the chooser (see NavigatorLauncher.findOtherApps) -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
+        </intent>
     </queries>
 
     <application

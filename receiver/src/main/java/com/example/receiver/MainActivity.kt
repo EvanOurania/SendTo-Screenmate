@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -322,6 +323,8 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
     val savedShowReopen by repository.showReopenButton.collectAsState(initial = ReceiverRepository.DEFAULT_SHOW_REOPEN_BUTTON)
     val savedAutoOpenMapsApp by repository.autoOpenMapsApp.collectAsState(initial = ReceiverRepository.DEFAULT_AUTO_OPEN_APP)
     val savedAutoOpenGeoApp by repository.autoOpenGeoApp.collectAsState(initial = ReceiverRepository.DEFAULT_AUTO_OPEN_APP)
+    val savedChooserMapsApps by repository.chooserMapsApps.collectAsState(initial = ReceiverRepository.DEFAULT_CHOOSER_APPS)
+    val savedChooserGeoApps by repository.chooserGeoApps.collectAsState(initial = ReceiverRepository.DEFAULT_CHOOSER_APPS)
     
     var textFieldsLoaded by remember { mutableStateOf(false) }
 
@@ -345,6 +348,15 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
     var showReopenButton by remember { mutableStateOf(ReceiverRepository.DEFAULT_SHOW_REOPEN_BUTTON) }
     var autoOpenMapsApp by remember { mutableStateOf(ReceiverRepository.DEFAULT_AUTO_OPEN_APP) }
     var autoOpenGeoApp by remember { mutableStateOf(ReceiverRepository.DEFAULT_AUTO_OPEN_APP) }
+    var chooserMapsApps by remember { mutableStateOf(ReceiverRepository.DEFAULT_CHOOSER_APPS) }
+    var chooserGeoApps by remember { mutableStateOf(ReceiverRepository.DEFAULT_CHOOSER_APPS) }
+    // The apps besides Google Maps and Waze that can open each kind of location
+    val otherMapsApps by produceState(emptyList<OtherApp>()) {
+        value = NavigatorLauncher.findOtherApps(context, NavigatorLauncher.GOOGLE_MAPS_SAMPLE_LINKS)
+    }
+    val otherGeoApps by produceState(emptyList<OtherApp>()) {
+        value = NavigatorLauncher.findOtherApps(context, listOf(NavigatorLauncher.GEO_SAMPLE_LINK))
+    }
     var autoOpenDelay by remember { mutableIntStateOf(ReceiverRepository.DEFAULT_AUTO_OPEN_DELAY) }
     
     // Fill the text fields from storage only once: re-filling them after every save would
@@ -365,6 +377,8 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
     LaunchedEffect(savedShowReopen) { showReopenButton = savedShowReopen }
     LaunchedEffect(savedAutoOpenMapsApp) { autoOpenMapsApp = savedAutoOpenMapsApp }
     LaunchedEffect(savedAutoOpenGeoApp) { autoOpenGeoApp = savedAutoOpenGeoApp }
+    LaunchedEffect(savedChooserMapsApps) { chooserMapsApps = savedChooserMapsApps }
+    LaunchedEffect(savedChooserGeoApps) { chooserGeoApps = savedChooserGeoApps }
     LaunchedEffect(savedAutoOpenDelay) { autoOpenDelay = savedAutoOpenDelay }
 
     var showQr by remember { mutableStateOf(false) }
@@ -710,9 +724,15 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
                                 HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
 
                                 Text(stringResource(R.string.auto_open_maps_label), style = MaterialTheme.typography.titleSmall)
-                                AutoOpenAppSelector(
-                                    selectedApp = autoOpenMapsApp,
-                                    onAppSelected = {
+                                ChooserAppsSelector(
+                                    shownApps = chooserMapsApps,
+                                    defaultApp = autoOpenMapsApp,
+                                    otherApps = otherMapsApps,
+                                    onShownAppsChange = {
+                                        chooserMapsApps = it
+                                        scope.launch { repository.saveChooserMapsApps(it) }
+                                    },
+                                    onDefaultAppChange = {
                                         autoOpenMapsApp = it
                                         scope.launch { repository.saveAutoOpenMapsApp(it) }
                                     }
@@ -721,9 +741,15 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
                                 HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
 
                                 Text(stringResource(R.string.auto_open_geo_label), style = MaterialTheme.typography.titleSmall)
-                                AutoOpenAppSelector(
-                                    selectedApp = autoOpenGeoApp,
-                                    onAppSelected = {
+                                ChooserAppsSelector(
+                                    shownApps = chooserGeoApps,
+                                    defaultApp = autoOpenGeoApp,
+                                    otherApps = otherGeoApps,
+                                    onShownAppsChange = {
+                                        chooserGeoApps = it
+                                        scope.launch { repository.saveChooserGeoApps(it) }
+                                    },
+                                    onDefaultAppChange = {
                                         autoOpenGeoApp = it
                                         scope.launch { repository.saveAutoOpenGeoApp(it) }
                                     }
@@ -848,44 +874,87 @@ fun ReceiverScreen(navigationPadding: PaddingValues) {
     }
 }
 
+/**
+ * The apps to show in the chooser (checkboxes) and the one that opens by itself (radio buttons). The
+ * latter is always shown, and so is the only app left ticked, so that the chooser always has one.
+ * Google Maps and Waze are saved as APP_MAPS and APP_WAZE, the other apps by package name.
+ */
 @Composable
-fun AutoOpenAppSelector(selectedApp: String, onAppSelected: (String) -> Unit) {
+fun ChooserAppsSelector(
+    shownApps: Set<String>,
+    defaultApp: String,
+    otherApps: List<OtherApp>,
+    onShownAppsChange: (Set<String>) -> Unit,
+    onDefaultAppChange: (String) -> Unit,
+) {
+    val listedApps = listOf(ReceiverRepository.APP_MAPS, ReceiverRepository.APP_WAZE) + otherApps.map { it.packageName }
+    val onlyShownApp = listedApps.filter { it in shownApps || it == defaultApp }.singleOrNull()
+
+    @Composable
+    fun AppRow(app: String, label: String) {
+        ChooserAppRow(
+            label = label,
+            shown = app in shownApps || app == defaultApp,
+            canHide = app != defaultApp && app != onlyShownApp,
+            isDefault = app == defaultApp,
+            onShownChange = { shown -> onShownAppsChange(if (shown) shownApps + app else shownApps - app) },
+            onSetDefault = {
+                onDefaultAppChange(app)
+                // Still shown if another app becomes the default
+                if (app !in shownApps) onShownAppsChange(shownApps + app)
+            }
+        )
+    }
+
     Column {
-        AutoOpenRow(
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.chooser_apps_show),
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.width(48.dp)
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Text(text = stringResource(R.string.chooser_apps_default), style = MaterialTheme.typography.labelSmall)
+        }
+        AppRow(ReceiverRepository.APP_MAPS, stringResource(R.string.app_maps))
+        AppRow(ReceiverRepository.APP_WAZE, stringResource(R.string.app_waze))
+        for (app in otherApps) {
+            AppRow(app.packageName, app.label)
+        }
+        // No auto-open
+        ChooserAppRow(
             label = stringResource(R.string.app_none),
-            selected = selectedApp == ReceiverRepository.APP_NONE,
-            onClick = { onAppSelected(ReceiverRepository.APP_NONE) }
-        )
-        AutoOpenRow(
-            label = stringResource(R.string.app_maps),
-            selected = selectedApp == ReceiverRepository.APP_MAPS,
-            onClick = { onAppSelected(ReceiverRepository.APP_MAPS) }
-        )
-        AutoOpenRow(
-            label = stringResource(R.string.app_waze),
-            selected = selectedApp == ReceiverRepository.APP_WAZE,
-            onClick = { onAppSelected(ReceiverRepository.APP_WAZE) }
-        )
-        AutoOpenRow(
-            label = stringResource(R.string.app_other),
-            selected = selectedApp == ReceiverRepository.APP_OTHER,
-            onClick = { onAppSelected(ReceiverRepository.APP_OTHER) }
+            shown = null,
+            canHide = false,
+            isDefault = defaultApp == ReceiverRepository.APP_NONE,
+            onShownChange = {},
+            onSetDefault = { onDefaultAppChange(ReceiverRepository.APP_NONE) }
         )
     }
 }
 
+/** [shown] is null for a row without the checkbox. */
 @Composable
-fun AutoOpenRow(label: String, selected: Boolean, onClick: () -> Unit) {
+fun ChooserAppRow(
+    label: String,
+    shown: Boolean?,
+    canHide: Boolean,
+    isDefault: Boolean,
+    onShownChange: (Boolean) -> Unit,
+    onSetDefault: () -> Unit,
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().height(48.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RadioButton(selected = selected, onClick = onClick)
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text = label, style = MaterialTheme.typography.bodyMedium)
+        if (shown != null) {
+            Checkbox(checked = shown, onCheckedChange = onShownChange, enabled = !shown || canHide)
+        } else {
+            Spacer(modifier = Modifier.width(48.dp))
+        }
+        Text(text = label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        RadioButton(selected = isDefault, onClick = onSetDefault)
     }
 }
 

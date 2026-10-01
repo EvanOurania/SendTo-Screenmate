@@ -37,7 +37,7 @@ The two apps talk through [ntfy](https://ntfy.sh), a free push notification serv
 - **End-to-end encryption** of everything you send.
 
 **Receiver (screen)**
-- **Opens places and routes by itself** in Waze or Google Maps, after a short countdown you can cancel. Web links open in the browser.
+- **Opens places and routes by itself** in Waze, Google Maps or another map app, after a short countdown you can cancel. Web links open in the browser.
 - **Routes:** Waze navigates to the route's destination.
 - **Nothing gets lost:** links sent while the screen was off arrive as soon as it's back online. Only the latest one opens by itself, and only if it's less than 30 minutes old; the others go to the history.
 - **History** of everything received, with place names, to reopen it with a tap.
@@ -62,7 +62,7 @@ To pair more phones later, tap **"Show QR code for the Sender"** on the Receiver
 ## ⚙️ Receiver settings
 | Setting | Default | What it does |
 |---|---|---|
-| Auto-open (Google Maps links / addresses and coordinates) | Waze | App used to open locations: Waze, Google Maps, the default app, or ask every time |
+| Navigation apps (Google Maps links / addresses and coordinates) | Google Maps and Waze shown, Waze opens | The installed map apps the chooser shows (e.g. GeoShare, Komoot), and the one that opens by itself, or ask every time |
 | Delay | 5 seconds | Countdown before opening. With 0 the app opens immediately, without the chooser (this keeps split-screen layouts intact) |
 | Auto-copy to clipboard | On | Copies every received link or text |
 | Accept only encrypted messages | Off | Ignores links sent with encryption turned off in the Sender |
