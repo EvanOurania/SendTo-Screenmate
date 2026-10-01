@@ -62,7 +62,7 @@ To pair more phones later, tap **"Show QR code for the Sender"** on the Receiver
 ## ⚙️ Receiver settings
 | Setting | Default | What it does |
 |---|---|---|
-| Auto-open (Google Maps links / addresses and coordinates) | Waze | App used to open locations: Waze, Google Maps, another app, or ask every time |
+| Auto-open (Google Maps links / addresses and coordinates) | Waze | App used to open locations: Waze, Google Maps, the default app, or ask every time |
 | Delay | 5 seconds | Countdown before opening. With 0 the app opens immediately, without the chooser (this keeps split-screen layouts intact) |
 | Auto-copy to clipboard | On | Copies every received link or text |
 | Accept only encrypted messages | Off | Ignores links sent with encryption turned off in the Sender |
