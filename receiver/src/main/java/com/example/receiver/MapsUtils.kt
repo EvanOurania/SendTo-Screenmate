@@ -213,6 +213,24 @@ object MapsUtils {
     }
 
     /**
+     * Formats the URI to open in Google Maps: a pin on the place, or on the route's destination,
+     * when the link contains it, otherwise the link itself (e.g. a short link, which Maps resolves).
+     */
+    fun getMapsUri(url: String): String {
+        // Routes: the destination only, as in getWazeUri. The map center (@...) lies somewhere along the route.
+        extractDirectionsDestination(url)?.let { destination ->
+            return if (COORDS_ONLY.matches(destination)) {
+                "geo:$destination?q=$destination"
+            } else {
+                "geo:0,0?q=${URLEncoder.encode(destination, StandardCharsets.UTF_8.toString())}"
+            }
+        }
+
+        val coords = extractCoordinates(url)
+        return if (coords != null) "geo:$coords?q=$coords" else url
+    }
+
+    /**
      * Formats a Waze-specific URI, including place name as a label if available.
      */
     fun getWazeUri(url: String, title: String): String {

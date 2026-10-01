@@ -46,8 +46,7 @@ class NavigatorLauncher(
     }
 
     fun openInMaps() {
-        val coords = MapsUtils.extractCoordinates(url)
-        openWithPackage(if (coords != null) "geo:$coords?q=$coords" else url, MAPS_PACKAGE)
+        openWithPackage(MapsUtils.getMapsUri(url), MAPS_PACKAGE)
     }
 
     suspend fun openInWaze() {

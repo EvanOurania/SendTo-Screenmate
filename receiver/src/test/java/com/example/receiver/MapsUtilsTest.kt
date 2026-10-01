@@ -91,6 +91,29 @@ class MapsUtilsTest {
     }
 
     @Test
+    fun testMapsUriForDirectionsWithoutCoordinates() {
+        // Without route details, search the destination instead of using the map center (@...)
+        val url = "https://www.google.com/maps/dir/Roma/Milano,+MI/@43.5,10.9,7z"
+        assertEquals("geo:0,0?q=Milano%2C+MI", MapsUtils.getMapsUri(url))
+    }
+
+    @Test
+    fun testMapsUriForDirectionsWithCoordinates() {
+        val url = "https://www.google.com/maps/dir/Roma/Milano/@43.5,10.9,7z/data=!3m1!4b1!4m13!4m12" +
+            "!1m5!1m1!1s0x132f6196f9928ebb:0xb90f770693656e38!2m2!1d12.4963655!2d41.9027835" +
+            "!1m5!1m1!1s0x4786c1493f1275e7:0x3cffcd13c6740e8d!2m2!1d9.1899820!2d45.4642035"
+        assertEquals("geo:45.4642035,9.1899820?q=45.4642035,9.1899820", MapsUtils.getMapsUri(url))
+    }
+
+    @Test
+    fun testMapsUriForPlaceAndShortLinkIsUnchanged() {
+        val url = "https://www.google.com/maps/place/Colosseo/@41.8902102,12.4922309,17z/data=!3m1!4b1!4m6!3m5" +
+            "!1s0x132f61b6532013ad:0x28f1c82e908503c4!8m2!3d41.8902102!4d12.4922309"
+        assertEquals("geo:41.8902102,12.4922309?q=41.8902102,12.4922309", MapsUtils.getMapsUri(url))
+        assertEquals("https://maps.app.goo.gl/abc123", MapsUtils.getMapsUri("https://maps.app.goo.gl/abc123"))
+    }
+
+    @Test
     fun testIsDroppedPinTitle() {
         assertTrue(MapsUtils.isDroppedPinTitle("Dropped pin"))
         assertTrue(MapsUtils.isDroppedPinTitle("Segnaposto"))
